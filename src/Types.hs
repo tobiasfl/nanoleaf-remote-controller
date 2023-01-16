@@ -1,29 +1,42 @@
 {-# LANGUAGE TemplateHaskell   #-}
 
 module Types 
-    ( NanoLeafInfo
+    ( NanoLeafInfo 
     , NanoLeaf
+    , hostname
+    , address
+    , port
     , mkNanoLeafInfo
     , mkNanoLeaf
-    , Port
+    , Port (..)
+    , Address (..)
+    , HostName (..)
+    , ModelName (..)
+    , FirmwareVersion (..)
+    , DeviceId (..)
     ) where
 
 import GHC.Word (Word16)
 import Data.Text (Text)
 import Control.Lens.TH (makeLenses)
---import Control.Lens.Setter ((%~),(.~))
 
-type ModelName = Text
+newtype ModelName = ModelName { getModelName :: Text } 
+    deriving (Show, Eq)
 
-type FirmwareVersion = Text
+newtype FirmwareVersion = FirmwareVersion { getFirmwareVersion :: Text } 
+    deriving (Show, Eq)
 
-type DeviceId = Text
+newtype DeviceId = DeviceId { getDeviceId :: Text } 
+    deriving (Show, Eq)
 
-type Port = Word16
+newtype Port = Port { getPort :: Word16 } 
+    deriving (Show, Eq)
 
-type HostName = Text
+newtype HostName = HostName { getHostName :: Text } 
+    deriving (Show, Eq)
 
-type Address = Text
+newtype Address = Address { getAddress :: Text } 
+    deriving (Show, Eq)
 
 data NanoLeafInfo = NanoLeafInfo
     { _modelName :: ModelName 

@@ -25,6 +25,9 @@ dependencies:
 - text
 - lens
 - parsec
+- http-client
+- http-types
+- aeson
 
 ghc-options:
 - -Wall

@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ExtendedDefaultRules #-}
-{-# OPTIONS_GHC -fno-warn-type-defaults #-}
+{-# OPTIONS_GHC -Wno-unused-do-bind #-}
 
 module Mdns
     ( findNanoleafs )
@@ -8,21 +7,14 @@ module Mdns
 
 import Shelly (shelly, run, Sh)
 import Data.Text (Text, pack, unpack)
-import Text.Read (readMaybe, readEither)
-import Types (NanoLeaf, mkNanoLeaf, NanoLeafInfo, mkNanoLeafInfo, Port)
+import Text.Read (readEither)
+import Types
 import Text.Parsec as P
-import Data.Either (fromRight)
-
---Currently just using avahi-browse
-
---TODO: parser interface for output from avahiBrowse and use in findNanoleafs
 
 findNanoleafs :: IO [NanoLeaf]
 findNanoleafs = do
     stdOutput <- avahiBrowseAndResolve
-    nanoLeafs <- either (error . show) pure $ P.parse nanoLeafParser "" stdOutput
-    return nanoLeafs
-
+    either (error . show) pure $ P.parse avahiBrowsParser "" stdOutput
 
 avahiBrowseAndResolve :: IO Text
 avahiBrowseAndResolve = shelly avahiBrowseAndResolveRun
@@ -30,32 +22,31 @@ avahiBrowseAndResolve = shelly avahiBrowseAndResolveRun
 avahiBrowseAndResolveRun :: Sh Text
 avahiBrowseAndResolveRun = run "avahi-browse" ["_nanoleafapi._tcp", "--resolve", "-t"]
 
-
 --TODO: use ParsecT and combine with Application monad instead
-nanoLeafParser :: P.Parsec Text () [NanoLeaf]
+avahiBrowsParser :: P.Parsec Text () [NanoLeaf]
+avahiBrowsParser = do
+    P.skipMany $ P.char '+' >> P.manyTill P.anyChar (P.char '\n')
+    P.many nanoLeafParser
+
+nanoLeafParser :: P.Parsec Text () NanoLeaf
 nanoLeafParser = do
-    P.skipMany $ P.manyTill P.anyChar (P.char '\n')
     P.char '=' >> P.manyTill P.anyChar (P.char '\n')
-    hostName <- bracketContentParser
-    addr <- bracketContentParser
-    port <- bracketContentParser >>= (either error pure . readEither . unpack)
-    nanoeLeafInfo <- nanoLeafInfoParser
-    return [mkNanoLeaf port hostName addr nanoeLeafInfo]
+    hostName <- HostName <$> bracketContentParser
+    addr <- Address <$> bracketContentParser
+    port <- bracketContentParser >>= (either error (pure . Port) . readEither . unpack)
+    mkNanoLeaf port hostName addr <$> nanoLeafInfoParser
 
 bracketContentParser :: P.Parsec Text () Text
-bracketContentParser = --TODO: this one may be prettier with P.between
+bracketContentParser =  
     P.manyTill P.anyChar (P.char '[') >> pack <$> P.manyTill P.anyChar (P.char ']')
 
---TODO: finish this
 nanoLeafInfoParser :: Parsec Text () NanoLeafInfo
 nanoLeafInfoParser = do
-    P.manyTill P.anyChar (P.char '[') 
-    firmwareVer <- P.manyTill P.anyChar (P.char '=') >> P.manyTill P.anyChar (P.char '\"')
-    modelName <- P.manyTill P.anyChar (P.char '=') >> P.manyTill P.anyChar (P.char '\"') 
-    devId <-  P.manyTill P.anyChar (P.char '=') >> P.manyTill P.anyChar (P.char '\"') 
-    return $ mkNanoLeafInfo """"""
-
-     
-
-fromTxt :: [Text] -> NanoLeafInfo
-fromTxt = undefined
+    P.manyTill P.anyChar (P.char '[')
+    firmwareVer <-FirmwareVersion <$> fieldParser
+    modelName <- ModelName <$> fieldParser
+    devId <- DeviceId <$> fieldParser
+    P.manyTill P.anyChar (P.char '\n')
+    return $ mkNanoLeafInfo modelName firmwareVer devId
+        where fieldParser = 
+                pack <$> (P.manyTill P.anyChar (P.char '=') >> P.manyTill P.anyChar (P.char '\"'))

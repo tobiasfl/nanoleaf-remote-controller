@@ -2,9 +2,9 @@ module Main (main) where
 
 import Lib
 import Mdns
+import NanoLeafApi
 
 main :: IO ()
 main = do
     nanoLeafs <- findNanoleafs
-    mapM_ print nanoLeafs
-    someFunc
+    --requestAuthToken (head nanoLeafs)
