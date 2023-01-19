@@ -1,2 +1,4 @@
 .stack-work/
 *~
+nanoleaf-remote-controller.cabal
+stack.yaml.lock
