@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Types 
     ( NanoLeafInfo 
@@ -71,5 +71,4 @@ mkNanoLeaf
     -> NanoLeafInfo
     -> NanoLeaf
 mkNanoLeaf = NanoLeaf 
-
 
