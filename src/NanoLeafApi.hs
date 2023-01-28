@@ -1,7 +1,13 @@
 module NanoLeafApi
     ( addUser
+    , initManager
     , getAllPanelInfo
-    , getOnOffState )
+    , getOnOffState 
+    , mkAuthToken
+    , getBrightnessState
+    , setBrightnessState
+    )
     where
 
 import NanoLeafApi.NanoLeafApi
+import NanoLeafApi.Types

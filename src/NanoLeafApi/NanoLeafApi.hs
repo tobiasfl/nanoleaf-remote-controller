@@ -3,7 +3,10 @@
 module NanoLeafApi.NanoLeafApi
     ( addUser
     , getAllPanelInfo
-    , getOnOffState )
+    , getOnOffState 
+    , initManager 
+    , getBrightnessState
+    , setBrightnessState)
     where
 
 --aeson
@@ -16,64 +19,87 @@ import qualified Types as T
 --import Control.Lens.Setter ((%~),(.~))
 import Control.Lens.Getter ((^.))
 import NanoLeafApi.Types
+import AppMonad (AppMonad, authToken, AppError (RequestWithoutAuthToken), liftIO, EnvConfig (EnvConfig, configAuthToken, connManager))
+import Control.Monad.Reader (reader, ask)
+import Control.Monad.Except (throwError)
+import Data.Maybe (fromMaybe, maybe)
 
---TODO: finish up the AppMonad in AppMonad.hs before anything else
---
---
-    --also need serialization of the allPanelInfo responsed for instance
+--TODO: also need serialization of the allPanelInfo responsed for instance
 
---TODO: probably want to reuse the a same manager instead of creating a new one all the time?
-    --Should perhaps be passed as state similar to a db connection
-    --Do not add more functionality until those things are in place
+initManager :: IO Manager
+initManager = newManager defaultManagerSettings
+
+createGetRequest :: T.NanoLeaf -> String -> AppMonad Request
+createGetRequest nf endPoint = do
+    maybeAuthTok <- reader configAuthToken
+    authTok <- maybe (throwError RequestWithoutAuthToken) return maybeAuthTok
+
+    let url = createUrl nf endPoint (Just authTok)
+    initialRequest <- liftIO $ parseRequest url
+    return $ initialRequest { method = "GET" }
+
+createUrl :: T.NanoLeaf -> String -> Maybe AuthToken -> String
+createUrl nf endPoint maybeAuthTok = "http://" ++ hostname ++ ":" ++ rPort ++ endPointWithAuth
+    where endPointWithAuth = "/api/v1/" ++ unpack (maybe "" getAuthToken maybeAuthTok) ++ endPoint
+          hostname = unpack $ T.getHostName $ nf ^. T.hostname
+          rPort = show $ T.getPort $ nf ^. T.port
 
 addUser :: T.NanoLeaf -> IO ()
 addUser nf = do
   manager <- newManager defaultManagerSettings
 
-  let endpoint = "/api/v1/new"
-  let hostname = unpack $ T.getHostName $ nf ^. T.hostname
-  let rPort = show $ T.getPort $ nf ^. T.port
-  let url = "http://" ++ hostname ++ ":" ++ rPort ++ endpoint
+  let url = createUrl nf "/new" Nothing
+
   initialRequest <- parseRequest url
   let request = initialRequest { method = "POST" }
 
   response <- httpLbs request manager
+
   putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
   print $ responseBody response
 
+--TODO: consider wrapping some of the calls in try and mapping to an appropriate AppError
+getAllPanelInfo :: T.NanoLeaf -> AppMonad ()
+getAllPanelInfo nf = do
+  request <- createGetRequest nf "/"
+  manager <- reader connManager
 
-getAllPanelInfo :: AuthToken -> T.NanoLeaf -> IO ()
-getAllPanelInfo authToken nf = do
-  manager <- newManager defaultManagerSettings
+  response <- liftIO $ httpLbs request manager
+  --TODO: close connection by using withResponse instead
+  liftIO $ putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
+  liftIO $ print $ responseBody response
 
-  let endpoint = "/api/v1/" ++ (unpack $ getAuthToken authToken) ++ "/"
-  let hostname = unpack $ T.getHostName $ nf ^. T.hostname
-  let rPort = show $ T.getPort $ nf ^. T.port
-  let url = "http://" ++ hostname ++ ":" ++ rPort ++ endpoint
-  initialRequest <- parseRequest url
-  let request = initialRequest { method = "GET" }
+getOnOffState :: T.NanoLeaf -> AppMonad ()
+getOnOffState nf = do
+  request <- createGetRequest nf "/state/on"
+  manager <- reader connManager
 
-  response <- httpLbs request manager
-  putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
-  print $ responseBody response
+  response <- liftIO $ httpLbs request manager
+  --TODO: close connection by using withResponse instead
+  liftIO $ putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
+  liftIO $ print $ responseBody response
 
-getOnOffState :: AuthToken -> T.NanoLeaf -> IO ()
-getOnOffState authToken nf = do
-  manager <- newManager defaultManagerSettings
-  let endpoint = "/api/v1/" ++ (unpack $ getAuthToken authToken) ++ "/state/on"
+getBrightnessState :: T.NanoLeaf -> AppMonad ()
+getBrightnessState nf = do
+  request <- createGetRequest nf "/state/brightness"
+  manager <- reader connManager
 
-  let hostname = unpack $ T.getHostName $ nf ^. T.hostname
-  let rPort = show $ T.getPort $ nf ^. T.port
-  let url = "http://" ++ hostname ++ ":" ++ rPort ++ endpoint
-  initialRequest <- parseRequest url
-  let request = initialRequest { method = "GET" }
+  response <- liftIO $ httpLbs request manager
+  --TODO: close connection by using withResponse instead
+  liftIO $ putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
+  liftIO $ print $ responseBody response
 
-  response <- httpLbs request manager
-  putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
-  print $ responseBody response
+setBrightnessState :: T.NanoLeaf -> Int -> AppMonad ()
+setBrightnessState nf newBrightness = do
+    (EnvConfig maybeAuthTok manager) <- ask
+    authTok <- maybe (throwError RequestWithoutAuthToken) return maybeAuthTok
 
---getAuthToken ()
---getPanelInfo
---
---possible helpers
---createEndPointUrl
+    let url = createUrl nf "/state" (Just authTok)
+    initialRequest <- liftIO $ parseRequest url
+
+    let requestObject = object ["brightness" .= object ["value" .= newBrightness]]
+    let request = initialRequest { method = "PUT", requestBody = RequestBodyLBS $ encode requestObject }
+
+    response <- liftIO $ httpNoBody request manager
+    --TODO: close connection by using withResponse instead
+    liftIO $ putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
