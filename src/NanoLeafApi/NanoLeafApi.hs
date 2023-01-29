@@ -4,25 +4,23 @@ module NanoLeafApi.NanoLeafApi
     ( addUser
     , getAllPanelInfo
     , getOnOffState 
+    , setOnOffState 
     , initManager 
     , getBrightnessState
     , setBrightnessState)
     where
 
---aeson
-
 import Network.HTTP.Client
 import Network.HTTP.Types.Status (statusCode)
 import Data.Aeson (object, (.=), encode)
-import Data.Text (Text, unpack)
+import Data.Text (unpack)
 import qualified Types as T
 --import Control.Lens.Setter ((%~),(.~))
 import Control.Lens.Getter ((^.))
 import NanoLeafApi.Types
-import AppMonad (AppMonad, authToken, AppError (RequestWithoutAuthToken), liftIO, EnvConfig (EnvConfig, configAuthToken, connManager))
+import AppMonad (AppMonad, AppError (RequestWithoutAuthToken), liftIO, EnvConfig (EnvConfig, configAuthToken, connManager))
 import Control.Monad.Reader (reader, ask)
 import Control.Monad.Except (throwError)
-import Data.Maybe (fromMaybe, maybe)
 
 --TODO: also need serialization of the allPanelInfo responsed for instance
 
@@ -78,6 +76,18 @@ getOnOffState nf = do
   --TODO: close connection by using withResponse instead
   liftIO $ putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
   liftIO $ print $ responseBody response
+
+setOnOffState :: T.NanoLeaf -> Bool -> AppMonad ()
+setOnOffState nf newOnOffState = do
+    (EnvConfig maybeAuthTok manager) <- ask
+    authTok <- maybe (throwError RequestWithoutAuthToken) return maybeAuthTok
+    let url = createUrl nf "/state" (Just authTok)
+    initialRequest <- liftIO $ parseRequest url
+    let requestObject = object ["on" .= object ["value" .= newOnOffState]]
+    let request = initialRequest { method = "PUT", requestBody = RequestBodyLBS $ encode requestObject }
+    response <- liftIO $ httpNoBody request manager
+    --TODO: close connection by using withResponse instead
+    liftIO $ putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
 
 getBrightnessState :: T.NanoLeaf -> AppMonad ()
 getBrightnessState nf = do
