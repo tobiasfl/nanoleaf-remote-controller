@@ -4,7 +4,6 @@ module NanoLeafApi
     , getAllPanelInfo
     , getOnOffState 
     , setOnOffState 
-    , mkAuthToken
     , getBrightnessState
     , setBrightnessState
     )

@@ -18,7 +18,7 @@ import qualified Types as T
 --import Control.Lens.Setter ((%~),(.~))
 import Control.Lens.Getter ((^.))
 import NanoLeafApi.Types
-import AppMonad (AppMonad, AppError (RequestWithoutAuthToken), liftIO, EnvConfig (EnvConfig, configAuthToken, connManager))
+import AppMonad (AppMonad, AppError (RequestWithoutAuthToken), liftIO, EnvConfig (EnvConfig, configAuthToken, connectionManager))
 import Control.Monad.Reader (reader, ask)
 import Control.Monad.Except (throwError)
 
@@ -36,9 +36,9 @@ createGetRequest nf endPoint = do
     initialRequest <- liftIO $ parseRequest url
     return $ initialRequest { method = "GET" }
 
-createUrl :: T.NanoLeaf -> String -> Maybe AuthToken -> String
+createUrl :: T.NanoLeaf -> String -> Maybe T.AuthToken -> String
 createUrl nf endPoint maybeAuthTok = "http://" ++ hostname ++ ":" ++ rPort ++ endPointWithAuth
-    where endPointWithAuth = "/api/v1/" ++ unpack (maybe "" getAuthToken maybeAuthTok) ++ endPoint
+    where endPointWithAuth = "/api/v1/" ++ unpack (maybe "" T.getAuthToken maybeAuthTok) ++ endPoint
           hostname = unpack $ T.getHostName $ nf ^. T.hostname
           rPort = show $ T.getPort $ nf ^. T.port
 
@@ -60,7 +60,7 @@ addUser nf = do
 getAllPanelInfo :: T.NanoLeaf -> AppMonad ()
 getAllPanelInfo nf = do
   request <- createGetRequest nf "/"
-  manager <- reader connManager
+  manager <- reader connectionManager
 
   response <- liftIO $ httpLbs request manager
   --TODO: close connection by using withResponse instead
@@ -70,7 +70,7 @@ getAllPanelInfo nf = do
 getOnOffState :: T.NanoLeaf -> AppMonad ()
 getOnOffState nf = do
   request <- createGetRequest nf "/state/on"
-  manager <- reader connManager
+  manager <- reader connectionManager
 
   response <- liftIO $ httpLbs request manager
   --TODO: close connection by using withResponse instead
@@ -92,7 +92,7 @@ setOnOffState nf newOnOffState = do
 getBrightnessState :: T.NanoLeaf -> AppMonad ()
 getBrightnessState nf = do
   request <- createGetRequest nf "/state/brightness"
-  manager <- reader connManager
+  manager <- reader connectionManager
 
   response <- liftIO $ httpLbs request manager
   --TODO: close connection by using withResponse instead

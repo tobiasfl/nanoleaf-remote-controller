@@ -14,6 +14,11 @@ module Types
     , ModelName (..)
     , FirmwareVersion (..)
     , DeviceId (..)
+    , Command (..)
+    , Request (..)
+    , AuthToken 
+    , mkAuthToken
+    , getAuthToken 
     ) where
 
 import GHC.Word (Word16)
@@ -71,3 +76,32 @@ mkNanoLeaf
     -> NanoLeafInfo
     -> NanoLeaf
 mkNanoLeaf = NanoLeaf 
+
+newtype AuthToken = AuthToken
+    { getAuthToken :: Text }
+    deriving (Show, Eq)
+
+mkAuthToken :: Text -> AuthToken
+mkAuthToken = AuthToken
+
+
+data Request = Request
+  { getCommand          :: Command
+  , getInitialAuthToken :: Maybe AuthToken 
+  } 
+  deriving (Show)
+
+--TODO: could perhaps also pass in some nanoleaf ID like e.g. IP or hostname to some commands
+--that the user may aquire by first running ListNanoLeafs
+
+data Command = GetAllPanelInfo
+             | GetNewAuthToken
+             | OnOffState
+             | TurnOff
+             | TurnOn
+             | ShowBrightness
+             | SetBrightness Int
+             | ListNanoLeafs  --TODO: use MDNS to list possible nanoleafs
+             deriving (Show, Eq)
+
+

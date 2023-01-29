@@ -30,6 +30,7 @@ dependencies:
 - aeson
 - mtl
 - extra
+- optparse-applicative
 
 ghc-options:
 - -Wall

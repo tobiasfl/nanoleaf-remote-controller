@@ -9,7 +9,7 @@ module AppMonad
     , liftIO
     ) where
 
-import NanoLeafApi.Types (AuthToken)
+import Types (AuthToken)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Except
@@ -22,7 +22,7 @@ data AppState = AppState
 
 data EnvConfig = EnvConfig
     { configAuthToken :: Maybe AuthToken 
-    , connManager :: Manager }
+    , connectionManager :: Manager }
 
 instance Show EnvConfig where
     show (EnvConfig authTok _) = "EnvConfig " ++ show authTok
@@ -35,7 +35,6 @@ data AppError =
     HttpError HttpException--TODO: make sure try catches for this one exist
     deriving (Show)
 
---Stolen from https://mmhaskell.com/blog/2022/3/24/making-your-own-monad
 newtype AppMonad a = AppMonad (StateT AppState (ReaderT EnvConfig (ExceptT AppError IO)) a)
   deriving (Functor, Applicative, Monad, MonadError AppError, MonadReader EnvConfig)
 
@@ -45,7 +44,3 @@ runAppMonad (AppMonad stateAction) envConfig appState =
 
 instance MonadIO AppMonad where
   liftIO = AppMonad . lift . lift . lift
-
---instance MonadState AppState AppMonad where
---  get = AppMonad get
---  put = AppMonad . put

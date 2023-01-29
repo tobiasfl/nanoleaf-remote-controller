@@ -26,7 +26,10 @@ source-repository head
 library
   exposed-modules:
       AppMonad
-      Lib
+      CommandLine
+      CommandLine.CommandLine
+      CommandLine.Types
+      Core
       Mdns
       NanoLeafApi
       NanoLeafApi.NanoLeafApi
@@ -45,6 +48,7 @@ library
     , http-types
     , lens
     , mtl
+    , optparse-applicative
     , parsec
     , shelly
     , text
@@ -66,6 +70,7 @@ executable nanoleaf-remote-controller-exe
     , lens
     , mtl
     , nanoleaf-remote-controller
+    , optparse-applicative
     , parsec
     , shelly
     , text
@@ -88,6 +93,7 @@ test-suite nanoleaf-remote-controller-test
     , lens
     , mtl
     , nanoleaf-remote-controller
+    , optparse-applicative
     , parsec
     , shelly
     , text
