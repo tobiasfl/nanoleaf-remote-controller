@@ -30,7 +30,7 @@ runApp = do
 
 --displayAppError :: AppError -> String TODO
 
---prepareAppReqs :: IO EnvConfig TODO: will look for config file with authToken
+--prepareAppReqs :: IO EnvConfig TODO: will look for config(json) file with authToken
 
 handleCommand :: Command -> AppMonad ()
 handleCommand cmd = do
@@ -42,8 +42,10 @@ handleCommand cmd = do
                  TurnOff -> setOnOffState (head nanoLeafs) False
                  TurnOn -> setOnOffState (head nanoLeafs) True
                  ShowBrightness -> getBrightnessState (head nanoLeafs)
-                 SetBrightness v -> setBrightnessState (head nanoLeafs) v
+                 SetBrightness level -> setBrightnessState (head nanoLeafs) level
+                 ListEffects -> getEffects (head nanoLeafs)
+                 GetSelectedEffect -> getSelectedEffect (head nanoLeafs)
+                 SetSelectedEffect effect -> setSelectedEffect (head nanoLeafs) effect
                  _ -> liftIO $ putStrLn $ show cmd ++ " is not implemented!")
    
 --getNewAuthToken :: AppMonad AuthToken TODO
-

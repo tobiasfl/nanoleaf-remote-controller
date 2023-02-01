@@ -36,6 +36,16 @@ commandParser = subparser
                     (metavar "INT"
                     <> help "An int between 0 and 100 where 100 is full brightness.")) 
                 (progDesc "Set brightness of the panels to a value between 0-100."))
+        <> command "list-effects" 
+            (info (pure ListEffects) (progDesc "List all downloaded effects on the panels."))
+        <> command "show-selected-effect" 
+            (info (pure GetSelectedEffect) (progDesc "Show currently selected effect."))
+        <> command "set-selected-effect" 
+            (info
+                (argument (maybeReader (Just . SetSelectedEffect))
+                    (metavar "STR"
+                    <> help "The name of the effect."))
+                (progDesc "Show currently selected effect."))
         <> command "show-on-off" 
             (info (pure OnOffState) (progDesc "Check if panels are on or off.")))
 

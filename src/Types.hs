@@ -101,6 +101,9 @@ data Command = GetAllPanelInfo
              | TurnOn
              | ShowBrightness
              | SetBrightness Int
+             | ListEffects
+             | GetSelectedEffect
+             | SetSelectedEffect String
              | ListNanoLeafs  --TODO: use MDNS to list possible nanoleafs
              deriving (Show, Eq)
 

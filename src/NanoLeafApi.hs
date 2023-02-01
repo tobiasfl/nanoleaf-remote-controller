@@ -6,6 +6,9 @@ module NanoLeafApi
     , setOnOffState 
     , getBrightnessState
     , setBrightnessState
+    , getEffects
+    , getSelectedEffect
+    , setSelectedEffect
     )
     where
 

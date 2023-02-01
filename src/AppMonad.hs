@@ -32,7 +32,8 @@ data AppError =
     AvahiBrowseCommandException String |
     AvahiBrowseParseError ParseError |
     RequestWithoutAuthToken |
-    HttpError HttpException--TODO: make sure try catches for this one exist
+    HttpRequestError HttpException | --TODO: make sure try catches for this one exist
+    NanoLeafHttpErrorResponse --TODO: make sure this one is thrown when response status is not 200 
     deriving (Show)
 
 newtype AppMonad a = AppMonad (StateT AppState (ReaderT EnvConfig (ExceptT AppError IO)) a)
