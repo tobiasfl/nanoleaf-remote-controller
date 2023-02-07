@@ -46,6 +46,8 @@ commandParser = subparser
                     (metavar "STR"
                     <> help "The name of the effect."))
                 (progDesc "Show currently selected effect."))
+        <> command "start-streaming" 
+            (info (pure StartNanoLeafExtCtrl) (progDesc "Start streaming contorl data to the panels over a UDP socket."))
         <> command "show-on-off" 
             (info (pure OnOffState) (progDesc "Check if panels are on or off.")))
 

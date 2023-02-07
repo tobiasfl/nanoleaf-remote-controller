@@ -29,9 +29,11 @@ library
       CommandLine
       CommandLine.CommandLine
       CommandLine.Types
+      Config
       Core
       Mdns
       NanoLeafApi
+      NanoLeafApi.ControlStream
       NanoLeafApi.NanoLeafApi
       NanoLeafApi.Types
       Types
@@ -43,15 +45,18 @@ library
   build-depends:
       aeson
     , base >=4.7 && <5
+    , bytestring
     , extra
     , http-client
     , http-types
     , lens
     , mtl
+    , network
     , optparse-applicative
     , parsec
     , shelly
     , text
+    , utf8-string
   default-language: Haskell2010
 
 executable nanoleaf-remote-controller-exe
@@ -64,16 +69,19 @@ executable nanoleaf-remote-controller-exe
   build-depends:
       aeson
     , base >=4.7 && <5
+    , bytestring
     , extra
     , http-client
     , http-types
     , lens
     , mtl
     , nanoleaf-remote-controller
+    , network
     , optparse-applicative
     , parsec
     , shelly
     , text
+    , utf8-string
   default-language: Haskell2010
 
 test-suite nanoleaf-remote-controller-test
@@ -87,14 +95,17 @@ test-suite nanoleaf-remote-controller-test
   build-depends:
       aeson
     , base >=4.7 && <5
+    , bytestring
     , extra
     , http-client
     , http-types
     , lens
     , mtl
     , nanoleaf-remote-controller
+    , network
     , optparse-applicative
     , parsec
     , shelly
     , text
+    , utf8-string
   default-language: Haskell2010

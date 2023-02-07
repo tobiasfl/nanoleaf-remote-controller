@@ -31,6 +31,9 @@ dependencies:
 - mtl
 - extra
 - optparse-applicative
+- network
+- bytestring
+- utf8-string
 
 ghc-options:
 - -Wall

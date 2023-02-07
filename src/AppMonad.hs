@@ -15,6 +15,7 @@ import Control.Monad.Reader
 import Control.Monad.Except
 import Text.Parsec (ParseError)
 import Network.HTTP.Client (Manager, HttpException)
+import Control.Exception (IOException)
 
 data AppState = AppState
     { authToken :: Maybe AuthToken }
@@ -32,8 +33,10 @@ data AppError =
     AvahiBrowseCommandException String |
     AvahiBrowseParseError ParseError |
     RequestWithoutAuthToken |
+    JSONDecodeError String |
     HttpRequestError HttpException | --TODO: make sure try catches for this one exist
-    NanoLeafHttpErrorResponse --TODO: make sure this one is thrown when response status is not 200 
+    NanoLeafHttpErrorResponse | --TODO: make sure this one is thrown when response status is not 200 
+    ConfigFileReadError IOException
     deriving (Show)
 
 newtype AppMonad a = AppMonad (StateT AppState (ReaderT EnvConfig (ExceptT AppError IO)) a)

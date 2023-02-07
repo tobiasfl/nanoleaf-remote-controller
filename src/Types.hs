@@ -25,6 +25,8 @@ import GHC.Word (Word16)
 import Data.Text (Text)
 import Control.Lens.TH (makeLenses)
 
+--TODO: some of these fields probably might as well be normal Strings
+
 newtype ModelName = ModelName { getModelName :: Text } 
     deriving (Show, Eq)
 
@@ -84,7 +86,6 @@ newtype AuthToken = AuthToken
 mkAuthToken :: Text -> AuthToken
 mkAuthToken = AuthToken
 
-
 data Request = Request
   { getCommand          :: Command
   , getInitialAuthToken :: Maybe AuthToken 
@@ -104,6 +105,7 @@ data Command = GetAllPanelInfo
              | ListEffects
              | GetSelectedEffect
              | SetSelectedEffect String
+             | StartNanoLeafExtCtrl
              | ListNanoLeafs  --TODO: use MDNS to list possible nanoleafs
              deriving (Show, Eq)
 

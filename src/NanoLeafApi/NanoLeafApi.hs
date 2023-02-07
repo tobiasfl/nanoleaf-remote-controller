@@ -10,31 +10,43 @@ module NanoLeafApi.NanoLeafApi
     , setBrightnessState
     , getEffects
     , getSelectedEffect
-    , setSelectedEffect)
+    , setSelectedEffect
+    , requestControlStream)
     where
 
 import Network.HTTP.Client
 import Network.HTTP.Types.Status (statusCode)
-import Data.Aeson (object, (.=), encode, Value)
+import Data.Aeson (object, (.=), encode, Value, eitherDecode, FromJSON)
+import qualified Data.ByteString as BS (ByteString)
 import Data.Text (unpack)
 import qualified Types as T
---import Control.Lens.Setter ((%~),(.~))
 import Control.Lens.Getter ((^.))
 import NanoLeafApi.Types
-import AppMonad (AppMonad, AppError (RequestWithoutAuthToken), liftIO, EnvConfig (EnvConfig, configAuthToken, connectionManager))
+import AppMonad (AppMonad, AppError (RequestWithoutAuthToken, JSONDecodeError), liftIO, EnvConfig (EnvConfig, configAuthToken, connectionManager))
 import Control.Monad.Reader (reader, ask)
 import Control.Monad.Except (throwError)
+import NanoLeafApi.ControlStream (testSendMessage)
 
 --TODO: also need serialization of the allPanelInfo responsed for instance
+
+--TODO: consider wrapping some of the calls in try and mapping to an appropriate AppError
 
 initManager :: IO Manager
 initManager = newManager defaultManagerSettings
 
---TODO: getRequestWithEndpointJSON :: JSON e => T.NanoLeaf -> String -> AppMonad e
+doGetRequestJSON :: FromJSON a => T.NanoLeaf -> String -> AppMonad a 
+doGetRequestJSON nl endPoint = do
+  request <- createGetRequest nl endPoint
+  manager <- reader connectionManager
+
+  response <- liftIO $ httpLbs request manager
+  --TODO: close connection by using withResponse instead
+  liftIO $ putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
+  either (throwError . JSONDecodeError) return $ eitherDecode $ responseBody response
 
 doGetRequest :: T.NanoLeaf -> String -> AppMonad ()
-doGetRequest nf endPoint = do
-  request <- createGetRequest nf endPoint
+doGetRequest nl endPoint = do
+  request <- createGetRequest nl endPoint
   manager <- reader connectionManager
 
   response <- liftIO $ httpLbs request manager
@@ -43,73 +55,93 @@ doGetRequest nf endPoint = do
   liftIO $ print $ responseBody response
 
 createGetRequest :: T.NanoLeaf -> String -> AppMonad Request
-createGetRequest nf endPoint = do
+createGetRequest nl endPoint = do
     maybeAuthTok <- reader configAuthToken
     authTok <- maybe (throwError RequestWithoutAuthToken) return maybeAuthTok
 
-    let url = createUrl nf endPoint (Just authTok)
+    let url = createUrl nl endPoint (Just authTok)
     initialRequest <- liftIO $ parseRequest url
     return $ initialRequest { method = "GET" }
 
 doPutRequest :: T.NanoLeaf -> Value -> String -> AppMonad ()
-doPutRequest nf requestObject endPoint = do
+doPutRequest nl requestObject endPoint = do
     (EnvConfig maybeAuthTok manager) <- ask
     authTok <- maybe (throwError RequestWithoutAuthToken) return maybeAuthTok
 
-    let url = createUrl nf endPoint (Just authTok)
+    let url = createUrl nl endPoint (Just authTok)
     initialRequest <- liftIO $ parseRequest url
     let request = initialRequest { method = "PUT", requestBody = RequestBodyLBS $ encode requestObject }
-    response <- liftIO $ httpNoBody request manager
+    response <- liftIO $ httpLbs request manager
     --TODO: close connection by using withResponse instead
     liftIO $ putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
+    liftIO $ print $ responseBody response
 
 createUrl :: T.NanoLeaf -> String -> Maybe T.AuthToken -> String
-createUrl nf endPoint maybeAuthTok = "http://" ++ hostname ++ ":" ++ rPort ++ endPointWithAuth
+createUrl nl endPoint maybeAuthTok = "http://" ++ hostname ++ ":" ++ rPort ++ endPointWithAuth
     where endPointWithAuth = "/api/v1/" ++ unpack (maybe "" T.getAuthToken maybeAuthTok) ++ endPoint
-          hostname = unpack $ T.getHostName $ nf ^. T.hostname
-          rPort = show $ T.getPort $ nf ^. T.port
+          hostname = unpack $ T.getHostName $ nl ^. T.hostname
+          rPort = show $ T.getPort $ nl ^. T.port
 
 addUser :: T.NanoLeaf -> IO ()
-addUser nf = do
+addUser nl = do
   manager <- newManager defaultManagerSettings
-  let url = createUrl nf "/new" Nothing
+  let url = createUrl nl "/new" Nothing
   initialRequest <- parseRequest url
   let request = initialRequest { method = "POST" }
   response <- httpLbs request manager
   putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
   print $ responseBody response
 
---TODO: consider wrapping some of the calls in try and mapping to an appropriate AppError
-getAllPanelInfo :: T.NanoLeaf -> AppMonad ()
-getAllPanelInfo nf = doGetRequest nf "/"
+getAllPanelInfo :: T.NanoLeaf -> AppMonad AllPanelInfo
+getAllPanelInfo nl = doGetRequestJSON nl "/"
 
 getOnOffState :: T.NanoLeaf -> AppMonad ()
-getOnOffState nf = doGetRequest nf  "/state/on"
+getOnOffState nl = doGetRequest nl  "/state/on"
 
 setOnOffState :: T.NanoLeaf -> Bool -> AppMonad ()
-setOnOffState nf newOnOffState = do
+setOnOffState nl newOnOffState = do
     let requestObject = object ["on" .= object ["value" .= newOnOffState]]
-    doPutRequest nf requestObject "/state"
+    doPutRequest nl requestObject "/state"
 
 getBrightnessState :: T.NanoLeaf -> AppMonad ()
-getBrightnessState nf = doGetRequest nf "/state/brightness"
+getBrightnessState nl = doGetRequest nl "/state/brightness"
 
 setBrightnessState :: T.NanoLeaf -> Int -> AppMonad ()
-setBrightnessState nf newBrightness = do
+setBrightnessState nl newBrightness = do
     let requestObject = object ["brightness" .= object ["value" .= newBrightness]]
-    doPutRequest nf requestObject "/state"
+    doPutRequest nl requestObject "/state"
 
 getEffects :: T.NanoLeaf -> AppMonad ()
-getEffects nf = doGetRequest nf "/effects/effectsList"
+getEffects nl = doGetRequest nl "/effects/effectsList"
 
 getSelectedEffect :: T.NanoLeaf -> AppMonad ()
-getSelectedEffect nf = doGetRequest nf "/effects/select"
+getSelectedEffect nl = doGetRequest nl "/effects/select"
 
 setSelectedEffect :: T.NanoLeaf -> String -> AppMonad ()
-setSelectedEffect nf effect = do
+setSelectedEffect nl effect = do
     --TODO: handle resource not found
     let requestObject = object ["select" .= effect ]
-    doPutRequest nf requestObject "/effects"
+    doPutRequest nl requestObject "/effects"
 
---requestControlStream :: T.NanoLeaf -> AppMonad () TODO: get info for udp socket
+--Request the nanoleaf to open a UDP socket to stream control data frames
+--Might need to first put them in "display" mode
+--
+--This function should at some point return:
+--streamControlIpAddr, streamControlPort, streamControlProtocol
+requestControlStream :: T.NanoLeaf -> AppMonad () 
+requestControlStream nl = do
+    let requestObject = object [ "write" .= object [ 
+            "command" .= ("display" :: String), 
+            "extControlVersion" .= ("v2" :: String), 
+            "animType" .= ("extControl" :: String)] ]
+    doPutRequest nl requestObject "/effects"
+  
+startStreaming :: T.NanoLeaf -> AppMonad ()
+startStreaming nl = liftIO $ testSendMessage nl
+
+getAllPanelIds :: T.NanoLeaf -> AppMonad [PanelId]
+getAllPanelIds nl = do
+    allPanelInfo <- getAllPanelInfo nl
+    --TODO: use lenses and create a get positionData lens?
+    return $ fmap panelId $ positionData $ layout $ panelLayout allPanelInfo 
 
