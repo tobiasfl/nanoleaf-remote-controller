@@ -29,7 +29,8 @@ createSocket nf = do
 
     sock <- socket (addrFamily serverAddr) Datagram defaultProtocol
     return $ ControlStreamHandle sock (addrAddress serverAddr)
- 
+
+--TODO: test sending several messages after another and setting all ids (and double check message format)
 testMsg :: String
 testMsg = 
     "0 2  ,---> nPanels\n1 18014 255 255 255 0 0 5  ,---> Set panel color\n2 45036 255 255 255 0 0 5  ,---> Set panel color"

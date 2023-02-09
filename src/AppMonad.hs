@@ -36,7 +36,8 @@ data AppError =
     JSONDecodeError String |
     HttpRequestError HttpException | --TODO: make sure try catches for this one exist
     NanoLeafHttpErrorResponse | --TODO: make sure this one is thrown when response status is not 200 
-    ConfigFileReadError IOException
+    ConfigFileReadError IOException |
+    ConfigFileWriteError IOException
     deriving (Show)
 
 newtype AppMonad a = AppMonad (StateT AppState (ReaderT EnvConfig (ExceptT AppError IO)) a)

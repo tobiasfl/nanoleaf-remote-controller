@@ -2,3 +2,4 @@
 *~
 nanoleaf-remote-controller.cabal
 stack.yaml.lock
+config.json

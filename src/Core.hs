@@ -10,17 +10,14 @@ import Control.Monad (when)
 import Options.Applicative
 import qualified CommandLine as CL
 import Types
-import Config (getConfig)
+import Config (getConfig, saveConfig, authenticationToken)
 
 --TODO: set up testing
---TODO: file for authtoken
 
 runApp :: IO ()
 runApp = do
-    (Request cmd auth) <- execParser opts
-    connManager <- initManager
-    configFromFile <- getConfig "/tmp/testconfig.json"--TODO: use this!
-    let envConf = EnvConfig auth connManager
+    (Request cmd authTokOverride) <- execParser opts
+    envConf  <- liftIO $ prepareAppReqs authTokOverride
     let initialState = AppState Nothing
     nanoLeafsOrErr <- runAppMonad (handleCommand cmd) envConf initialState
     print nanoLeafsOrErr
@@ -32,7 +29,13 @@ runApp = do
 
 --displayAppError :: AppError -> String TODO
 
---prepareAppReqs :: IO EnvConfig TODO: will look for config(json) file with authToken
+prepareAppReqs :: Maybe AuthToken -> IO EnvConfig
+prepareAppReqs authTokOverride = do
+    connManager <- initManager
+    configFromFileOrErr <- getConfig "config.json"
+    --TODO: handle thrown errors
+    let authTokenToUse = authTokOverride <|> either (const Nothing) (fmap mkAuthToken . authenticationToken) configFromFileOrErr
+    return $ EnvConfig authTokenToUse connManager
 
 handleCommand :: Command -> AppMonad ()
 handleCommand cmd = do
