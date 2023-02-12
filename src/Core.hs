@@ -51,7 +51,7 @@ handleCommand cmd = do
                  ListEffects -> getEffects (head nanoLeafs)
                  GetSelectedEffect -> getSelectedEffect (head nanoLeafs)
                  SetSelectedEffect effect -> setSelectedEffect (head nanoLeafs) effect
-                 StartNanoLeafExtCtrl -> requestControlStream (head nanoLeafs)
+                 StartNanoLeafExtCtrl -> startStreaming (head nanoLeafs)
                  _ -> liftIO $ putStrLn $ show cmd ++ " is not implemented!")
    
 --getNewAuthToken :: AppMonad AuthToken TODO

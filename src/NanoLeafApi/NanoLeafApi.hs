@@ -11,7 +11,8 @@ module NanoLeafApi.NanoLeafApi
     , getEffects
     , getSelectedEffect
     , setSelectedEffect
-    , requestControlStream)
+    , startStreaming
+    )
     where
 
 import Network.HTTP.Client
@@ -25,7 +26,7 @@ import NanoLeafApi.Types
 import AppMonad (AppMonad, AppError (RequestWithoutAuthToken, JSONDecodeError), liftIO, EnvConfig (EnvConfig, configAuthToken, connectionManager))
 import Control.Monad.Reader (reader, ask)
 import Control.Monad.Except (throwError)
-import NanoLeafApi.ControlStream (testSendMessage)
+import NanoLeafApi.ControlStream (sendMessageForever)
 
 --TODO: also need serialization of the allPanelInfo responsed for instance
 
@@ -137,7 +138,14 @@ requestControlStream nl = do
     doPutRequest nl requestObject "/effects"
   
 startStreaming :: T.NanoLeaf -> AppMonad ()
-startStreaming nl = liftIO $ testSendMessage nl
+startStreaming nl = do
+    panelIds <- getAllPanelIds nl
+    liftIO $ print $ "Panel IDs:" ++ show panelIds
+    requestControlStream nl
+    --TODO: check last message was successful and that selected effect is
+    --"\"*ExtControl*\""
+    --Remove panelid == 0?
+    liftIO $ sendMessageForever nl panelIds 
 
 getAllPanelIds :: T.NanoLeaf -> AppMonad [PanelId]
 getAllPanelIds nl = do

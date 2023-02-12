@@ -9,8 +9,8 @@ module NanoLeafApi
     , getEffects
     , getSelectedEffect
     , setSelectedEffect
-    , requestControlStream
     , AllPanelInfo--TODO: maybe not expose this directly?
+    , startStreaming
     )
     where
 

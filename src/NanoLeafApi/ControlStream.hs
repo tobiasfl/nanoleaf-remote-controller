@@ -1,15 +1,21 @@
 
 module NanoLeafApi.ControlStream (
-    testSendMessage)
+    sendMessage
+    , sendMessageForever)
     where
 
 import Network.Socket
 import Network.Socket.ByteString
-import qualified Data.ByteString as BS (ByteString, length)
+import qualified Data.ByteString as BS (ByteString, length, pack, concat)
+import qualified Data.ByteString.Lazy as BSL (toStrict, ByteString)
 import Data.ByteString.UTF8 as BSU
 import Data.Text (unpack)
 import Types (NanoLeaf, getHostName, hostname)
 import Control.Lens.Getter ((^.))
+import NanoLeafApi.Types (PanelId)
+import Control.Concurrent (threadDelay)
+import Control.Monad
+import Data.ByteString.Builder (toLazyByteString, word16BE)
 
 data ControlStreamHandle = ControlStreamHandle 
     { sock :: Socket 
@@ -27,21 +33,40 @@ createSocket nf = do
     addrInfos <- getAddrInfo Nothing (Just (unpack $ getHostName $ nf ^. hostname)) (Just defaultUdpPort)
     let serverAddr = head addrInfos
 
-    sock <- socket (addrFamily serverAddr) Datagram defaultProtocol
-    return $ ControlStreamHandle sock (addrAddress serverAddr)
+    cshSock <- socket (addrFamily serverAddr) Datagram defaultProtocol
+    return $ ControlStreamHandle cshSock (addrAddress serverAddr)
 
---TODO: test sending several messages after another and setting all ids (and double check message format)
-testMsg :: String
-testMsg = 
-    "0 2  ,---> nPanels\n1 18014 255 255 255 0 0 5  ,---> Set panel color\n2 45036 255 255 255 0 0 5  ,---> Set panel color"
+--TODO: Consider converting whole thing to use lazy ByteString instead
+createStreamingMsg :: [PanelId] -> (Int, Int, Int, Int) -> BS.ByteString
+createStreamingMsg ids (r, g, b, transitionTime100ms) = header <> body
+        where header = BS.pack $ map fromIntegral [0, Prelude.length ids] 
+              body :: ByteString
+              body = BS.concat $ map (\pid -> encodeWord16 pid <> BS.pack (map fromIntegral [r, g, b, 0]) <> encodeWord16 transitionTime100ms) ids
+              encodeWord16 :: Int -> BS.ByteString
+              encodeWord16 = BSL.toStrict . toLazyByteString . word16BE . fromIntegral 
 
-testSendMessage :: NanoLeaf -> IO ()
-testSendMessage nf = do
+sendMessage :: NanoLeaf -> [PanelId] -> IO ()
+sendMessage nf ids = do
     handle <- createSocket nf
-    print $ "message:\n" ++ testMsg
-    let msg = BSU.fromString testMsg
+    let msg = createStreamingMsg ids (255, 255, 255, 1)
     sendByteString handle msg
     closeSocket handle
+
+sendMessageForever :: NanoLeaf -> [PanelId] -> IO ()
+sendMessageForever nl ids = do
+    handle <- createSocket nl
+    let greenMsg = createStreamingMsg ids (0, 255, 0, 1)
+    let blueMsg = createStreamingMsg ids (0, 0, 255, 1)
+    let redMsg = createStreamingMsg ids (255, 0, 0, 1)
+    forever (do
+        threadDelay 1000000
+        sendByteString handle greenMsg
+        threadDelay 1000000
+        sendByteString handle blueMsg
+        threadDelay 1000000
+        sendByteString handle redMsg
+        )
+    closeSocket handle   
 
 sendByteString :: ControlStreamHandle -> BS.ByteString -> IO ()
 sendByteString csHandle msg = do
