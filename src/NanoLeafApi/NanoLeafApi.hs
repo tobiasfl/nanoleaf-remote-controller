@@ -139,12 +139,11 @@ requestControlStream nl = do
   
 startStreaming :: T.NanoLeaf -> AppMonad ()
 startStreaming nl = do
-    panelIds <- getAllPanelIds nl
+    panelIds <-  filter (0/=) <$> getAllPanelIds nl
     liftIO $ print $ "Panel IDs:" ++ show panelIds
     requestControlStream nl
     --TODO: check last message was successful and that selected effect is
     --"\"*ExtControl*\""
-    --Remove panelid == 0?
     liftIO $ sendMessageForever nl panelIds 
 
 getAllPanelIds :: T.NanoLeaf -> AppMonad [PanelId]
