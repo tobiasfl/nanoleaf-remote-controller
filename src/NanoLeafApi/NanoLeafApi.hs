@@ -40,6 +40,7 @@ doGetRequestJSON nl endPoint = do
   request <- createGetRequest nl endPoint
   manager <- reader connectionManager
 
+  liftIO $ putStrLn $ "Sending GET request: " ++ show request
   response <- liftIO $ httpLbs request manager
   --TODO: close connection by using withResponse instead
   liftIO $ putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
@@ -50,6 +51,7 @@ doGetRequest nl endPoint = do
   request <- createGetRequest nl endPoint
   manager <- reader connectionManager
 
+  liftIO $ putStrLn $ "Sending GET request: " ++ show request
   response <- liftIO $ httpLbs request manager
   --TODO: close connection by using withResponse instead
   liftIO $ putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
@@ -72,6 +74,7 @@ doPutRequest nl requestObject endPoint = do
     let url = createUrl nl endPoint (Just authTok)
     initialRequest <- liftIO $ parseRequest url
     let request = initialRequest { method = "PUT", requestBody = RequestBodyLBS $ encode requestObject }
+    liftIO $ putStrLn $ "Sending PUT request: " ++ show request
     response <- liftIO $ httpLbs request manager
     --TODO: close connection by using withResponse instead
     liftIO $ putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)

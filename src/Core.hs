@@ -10,7 +10,8 @@ import Control.Monad (when)
 import Options.Applicative
 import qualified CommandLine as CL
 import Types
-import Config (getConfig, saveConfig, authenticationToken)
+import Config (getConfig, authenticationToken)
+import qualified Alsa as ALSA
 
 --TODO: set up testing
 
@@ -51,7 +52,13 @@ handleCommand cmd = do
                  ListEffects -> getEffects (head nanoLeafs)
                  GetSelectedEffect -> getSelectedEffect (head nanoLeafs)
                  SetSelectedEffect effect -> setSelectedEffect (head nanoLeafs) effect
-                 StartNanoLeafExtCtrl -> startStreaming (head nanoLeafs)
+                 StartNanoLeafExtCtrl -> handleStartStreamingCommand (head nanoLeafs)
                  _ -> liftIO $ putStrLn $ show cmd ++ " is not implemented!")
-   
+  
+
+handleStartStreamingCommand :: NanoLeaf -> AppMonad ()
+handleStartStreamingCommand nl = do
+    liftIO ALSA.volumeMeter
+    --startStreaming nl
+
 --getNewAuthToken :: AppMonad AuthToken TODO

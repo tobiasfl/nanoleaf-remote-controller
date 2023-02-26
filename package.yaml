@@ -34,6 +34,9 @@ dependencies:
 - network
 - bytestring
 - utf8-string
+- alsa-seq
+- alsa-pcm
+- alsa-core
 
 ghc-options:
 - -Wall

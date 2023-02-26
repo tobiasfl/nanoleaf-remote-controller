@@ -25,6 +25,8 @@ source-repository head
 
 library
   exposed-modules:
+      Alsa
+      Alsa.Alsa
       AppMonad
       CommandLine
       CommandLine.CommandLine
@@ -44,6 +46,9 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       aeson
+    , alsa-core
+    , alsa-pcm
+    , alsa-seq
     , base >=4.7 && <5
     , bytestring
     , extra
@@ -68,6 +73,9 @@ executable nanoleaf-remote-controller-exe
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
+    , alsa-core
+    , alsa-pcm
+    , alsa-seq
     , base >=4.7 && <5
     , bytestring
     , extra
@@ -94,6 +102,9 @@ test-suite nanoleaf-remote-controller-test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
+    , alsa-core
+    , alsa-pcm
+    , alsa-seq
     , base >=4.7 && <5
     , bytestring
     , extra
