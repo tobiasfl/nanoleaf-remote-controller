@@ -16,6 +16,7 @@ import NanoLeafApi.Types (PanelId)
 import Control.Concurrent (threadDelay)
 import Control.Monad
 import Data.ByteString.Builder (toLazyByteString, word16BE)
+import qualified NanoLeafApi.Alsa.Alsa as ALSA
 
 data ControlStreamHandle = ControlStreamHandle 
     { sock :: Socket 
@@ -52,20 +53,35 @@ sendMessage nf ids = do
     sendByteString handle msg
     closeSocket handle
 
+greenMsg :: [PanelId] -> BS.ByteString
+greenMsg ids = createStreamingMsg ids (0, 255, 0, 1)
+
+blueMsg :: [PanelId] -> BS.ByteString
+blueMsg ids = createStreamingMsg ids (0, 0, 255, 1)
+
+redMsg :: [PanelId] -> BS.ByteString
+redMsg ids = createStreamingMsg ids (255, 0, 0, 1)
+
+volumeToColor :: Int -> (Int, Int, Int, Int) 
+volumeToColor vol = (r, g, b, 1)
+    where r = vol `div` 255
+          g = vol `div` 255
+          b = vol `div` 255
+
+
 sendMessageForever :: NanoLeaf -> [PanelId] -> IO ()
 sendMessageForever nl ids = do
     handle <- createSocket nl
-    let greenMsg = createStreamingMsg ids (0, 255, 0, 1)
-    let blueMsg = createStreamingMsg ids (0, 0, 255, 1)
-    let redMsg = createStreamingMsg ids (255, 0, 0, 1)
-    forever (do
-        threadDelay 1000000
-        sendByteString handle greenMsg
-        threadDelay 1000000
-        sendByteString handle blueMsg
-        threadDelay 1000000
-        sendByteString handle redMsg
-        )
+    let callBack v = sendByteString handle (createStreamingMsg ids $ volumeToColor v)
+    ALSA.volumeMeterTime callBack
+    --forever (do
+    --    threadDelay 1000000
+    --    sendByteString handle greenMsg
+    --    threadDelay 1000000
+    --    sendByteString handle blueMsg
+    --    threadDelay 1000000
+    --    sendByteString handle redMsg
+    --    )
     closeSocket handle   
 
 sendByteString :: ControlStreamHandle -> BS.ByteString -> IO ()

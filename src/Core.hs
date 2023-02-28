@@ -11,7 +11,6 @@ import Options.Applicative
 import qualified CommandLine as CL
 import Types
 import Config (getConfig, authenticationToken)
-import qualified Alsa as ALSA
 
 --TODO: set up testing
 
@@ -58,7 +57,6 @@ handleCommand cmd = do
 
 handleStartStreamingCommand :: NanoLeaf -> AppMonad ()
 handleStartStreamingCommand nl = do
-    liftIO ALSA.volumeMeter
-    --startStreaming nl
+    startStreaming nl
 
 --getNewAuthToken :: AppMonad AuthToken TODO

@@ -29,7 +29,7 @@ import Control.Monad.Except (throwError)
 import NanoLeafApi.ControlStream (sendMessageForever)
 
 --TODO: also need serialization of the allPanelInfo responsed for instance
-
+--TODO: Might want internal NanoLeafInfo type that Core has to map to before sending request in here 
 --TODO: consider wrapping some of the calls in try and mapping to an appropriate AppError
 
 initManager :: IO Manager
