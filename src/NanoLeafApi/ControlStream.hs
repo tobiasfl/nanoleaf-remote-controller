@@ -15,8 +15,11 @@ import Control.Lens.Getter ((^.))
 import NanoLeafApi.Types (PanelId)
 import Control.Concurrent (threadDelay)
 import Control.Monad
+import Data.List ((\\))
 import Data.ByteString.Builder (toLazyByteString, word16BE)
 import qualified NanoLeafApi.Alsa.Alsa as ALSA
+import qualified Data.Map as M
+--TODO: make more of the imports qualified
 
 data ControlStreamHandle = ControlStreamHandle 
     { sock :: Socket 
@@ -38,6 +41,7 @@ createSocket nf = do
     return $ ControlStreamHandle cshSock (addrAddress serverAddr)
 
 --TODO: Consider converting whole thing to use lazy ByteString instead
+--TODO: Also need a version of this function that can get a spec of different colors for each panelId(a map from id to colour)
 createStreamingMsg :: [PanelId] -> (Int, Int, Int, Int) -> BS.ByteString
 createStreamingMsg ids (r, g, b, transitionTime100ms) = header <> body
         where header = BS.pack $ map fromIntegral [0, Prelude.length ids] 
@@ -45,6 +49,16 @@ createStreamingMsg ids (r, g, b, transitionTime100ms) = header <> body
               body = BS.concat $ map (\pid -> encodeWord16 pid <> BS.pack (map fromIntegral [r, g, b, 0]) <> encodeWord16 transitionTime100ms) ids
               encodeWord16 :: Int -> BS.ByteString
               encodeWord16 = BSL.toStrict . toLazyByteString . word16BE . fromIntegral 
+
+createStreamingMsgFromMap :: M.Map PanelId (Int, Int, Int, Int) -> BS.ByteString
+createStreamingMsgFromMap idsToColors = header <> body
+        where header = BS.pack $ map fromIntegral [0, M.size idsToColors] 
+              body :: ByteString
+              body = BS.concat $ map (\(pid, (r, g, b, tt)) -> encodeWord16 pid <> BS.pack (map fromIntegral [r, g, b, 0]) <> encodeWord16 tt) $ M.toList idsToColors
+              encodeWord16 :: Int -> BS.ByteString
+              encodeWord16 = BSL.toStrict . toLazyByteString . word16BE . fromIntegral 
+
+
 
 sendMessage :: NanoLeaf -> [PanelId] -> IO ()
 sendMessage nf ids = do
@@ -68,20 +82,25 @@ volumeToColor vol = (r, g, b, 1)
           g = vol `div` 255
           b = vol `div` 255
 
+--pretending that 17000 is max TODO: find real max
+volumeToPanelCount :: Int -> [PanelId] -> Int
+volumeToPanelCount volume panelIds = (volume `div` toDivBy) + 1
+    where maxVolume = 17000
+          toDivBy = maxVolume `div` Prelude.length panelIds
 
+volumeToPanelIds :: Int -> [PanelId] -> [PanelId]
+volumeToPanelIds volume panelIds = Prelude.take (volumeToPanelCount volume panelIds) panelIds
+
+--TODO: add timer to make sure you only send msg every 100ms
 sendMessageForever :: NanoLeaf -> [PanelId] -> IO ()
 sendMessageForever nl ids = do
     handle <- createSocket nl
-    let callBack v = sendByteString handle (createStreamingMsg ids $ volumeToColor v)
-    ALSA.volumeMeterTime callBack
-    --forever (do
-    --    threadDelay 1000000
-    --    sendByteString handle greenMsg
-    --    threadDelay 1000000
-    --    sendByteString handle blueMsg
-    --    threadDelay 1000000
-    --    sendByteString handle redMsg
-    --    )
+    ALSA.volumeMeter (\volume -> do
+        let withExtraVolume = volume * 3
+        let panelsToLightUp = volumeToPanelIds withExtraVolume ids
+        let panelsToDarken = ids \\ panelsToLightUp
+        let panelColorsMap = M.fromList $ zip panelsToLightUp (repeat (255, 0, 0, 1)) ++ zip panelsToDarken (repeat (0, 0, 0, 1))
+        sendByteString handle (createStreamingMsgFromMap panelColorsMap))
     closeSocket handle   
 
 sendByteString :: ControlStreamHandle -> BS.ByteString -> IO ()

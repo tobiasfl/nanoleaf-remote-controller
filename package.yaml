@@ -37,6 +37,7 @@ dependencies:
 - alsa-seq
 - alsa-pcm
 - alsa-core
+- containers
 
 ghc-options:
 - -Wall

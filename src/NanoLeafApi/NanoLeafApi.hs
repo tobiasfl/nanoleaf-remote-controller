@@ -127,11 +127,9 @@ setSelectedEffect nl effect = do
     let requestObject = object ["select" .= effect ]
     doPutRequest nl requestObject "/effects"
 
---Request the nanoleaf to open a UDP socket to stream control data frames
---Might need to first put them in "display" mode
---
---This function should at some point return:
---streamControlIpAddr, streamControlPort, streamControlProtocol
+--Requests the nanoleaf to open a UDP socket to stream control data frames
+--Can be verified by checking that nanoleaf selected mode is
+    --"\"*ExtControl*\""
 requestControlStream :: T.NanoLeaf -> AppMonad () 
 requestControlStream nl = do
     let requestObject = object [ "write" .= object [ 

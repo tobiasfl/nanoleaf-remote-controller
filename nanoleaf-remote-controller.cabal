@@ -50,6 +50,7 @@ library
     , alsa-seq
     , base >=4.7 && <5
     , bytestring
+    , containers
     , extra
     , http-client
     , http-types
@@ -77,6 +78,7 @@ executable nanoleaf-remote-controller-exe
     , alsa-seq
     , base >=4.7 && <5
     , bytestring
+    , containers
     , extra
     , http-client
     , http-types
@@ -106,6 +108,7 @@ test-suite nanoleaf-remote-controller-test
     , alsa-seq
     , base >=4.7 && <5
     , bytestring
+    , containers
     , extra
     , http-client
     , http-types
