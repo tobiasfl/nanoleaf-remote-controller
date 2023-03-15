@@ -6,6 +6,7 @@ module Config
     ( getConfig
     , saveConfig
     , authenticationToken
+    , ConfigFile
     )
     where
 

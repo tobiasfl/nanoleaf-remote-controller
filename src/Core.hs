@@ -7,10 +7,12 @@ import AppMonad (liftIO, AppError (NanoLeafsNotFound), AppMonad, runAppMonad, Ap
 import NanoLeafApi 
 import Control.Monad.Except (throwError)
 import Control.Monad (when)
+import Control.Monad.Reader (asks)
 import Options.Applicative
 import qualified CommandLine as CL
+import Data.Maybe (isNothing)
 import Types
-import Config (getConfig, authenticationToken)
+import Config (getConfig, authenticationToken, ConfigFile)
 
 --TODO: set up testing
 
@@ -33,14 +35,19 @@ prepareAppReqs :: Maybe AuthToken -> IO EnvConfig
 prepareAppReqs authTokOverride = do
     connManager <- initManager
     configFromFileOrErr <- getConfig "config.json"
-    --TODO: handle thrown errors
-    let authTokenToUse = authTokOverride <|> either (const Nothing) (fmap mkAuthToken . authenticationToken) configFromFileOrErr
+    --TODO: handle thrown errors, (either eat them, print an explaining string, or crash program)
+    let authTokenToUse = resolveAuthToken authTokOverride configFromFileOrErr
     return $ EnvConfig authTokenToUse connManager
+
+resolveAuthToken :: Maybe AuthToken -> Either AppError ConfigFile -> Maybe AuthToken 
+resolveAuthToken authTokOverride configFromFileOrErr = do 
+    authTokOverride <|> either (const Nothing) (fmap mkAuthToken . authenticationToken) configFromFileOrErr
 
 handleCommand :: Command -> AppMonad ()
 handleCommand cmd = do
     nanoLeafs <- findNanoleafs 
     when (null nanoLeafs) (throwError NanoLeafsNotFound)    
+    maybeAuthTok <- asks configAuthToken
     --TODO: handle when no token is configured
     (case cmd of GetAllPanelInfo -> getAllPanelInfo (head nanoLeafs) >>= liftIO . print
                  OnOffState -> getOnOffState $ head nanoLeafs
@@ -59,4 +66,5 @@ handleStartStreamingCommand :: NanoLeaf -> AppMonad ()
 handleStartStreamingCommand nl = do
     startStreaming nl
 
---getNewAuthToken :: AppMonad AuthToken TODO
+getNewAuthToken :: AppMonad AuthToken
+getNewAuthToken = undefined

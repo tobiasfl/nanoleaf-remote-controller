@@ -18,7 +18,6 @@ module NanoLeafApi.NanoLeafApi
 import Network.HTTP.Client
 import Network.HTTP.Types.Status (statusCode)
 import Data.Aeson (object, (.=), encode, Value, eitherDecode, FromJSON)
-import qualified Data.ByteString as BS (ByteString)
 import Data.Text (unpack)
 import qualified Types as T
 import Control.Lens.Getter ((^.))
