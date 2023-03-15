@@ -23,11 +23,11 @@ pulseAudioDevice = "default"
 inputFormat :: SoundFmt Int16
 inputFormat = SoundFmt { sampleFreq = 8000 }
 
---TODO: somehow connect so that volume level triggers a streaming message to NanoLeafs
 --TODO: Find out how often it actually measures, and find way to limit to make it a parameter
 
+--Takes a callback that may use the measured volume to affect nanoleafs
 volumeMeter :: (Int -> IO ()) -> IO ()
-volumeMeter cb = let source = alsaSoundSource pulseAudioDevice inputFormat
+volumeMeter cb = let source = alsaSoundSource microphoneDevice inputFormat
                 in allocaArray     bufSize $ \buf  ->
                    withSoundSource source  $ \handle -> 
                        loop source handle bufSize buf cb
