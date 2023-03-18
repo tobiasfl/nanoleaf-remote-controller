@@ -13,11 +13,12 @@ import Data.Text (unpack)
 import Types (NanoLeaf, getHostName, hostname)
 import Control.Lens.Getter ((^.))
 import NanoLeafApi.Types (PanelId)
-import Control.Concurrent (threadDelay)
 import Control.Monad
 import Data.ByteString.Builder (toLazyByteString, word16BE)
 import qualified NanoLeafApi.Alsa.Alsa as ALSA
 import NanoLeafApi.Effects (volumeMeterEffect, waveEffect, PanelUpdate(..), Effect)
+import Control.Concurrent (threadDelay, forkIO)
+import Control.Concurrent.MVar (newEmptyMVar, takeMVar, tryTakeMVar)
 
 --TODO: make more of the imports qualified
 
@@ -59,16 +60,23 @@ doEffect handle effect = do
 continuousWaves :: NanoLeaf -> [PanelId] -> IO ()
 continuousWaves nl ids = do
     handle <- createSocket nl
-    ALSA.volumeMeter (\volume -> when (volume*3 > 8000) (doEffect handle (waveEffect ids)))
+    mVar <- newEmptyMVar
+    threadId <- forkIO (ALSA.volumeMeter mVar)
+    forever $ do
+        volume <- takeMVar mVar
+        when (volume > 2000) (doEffect handle (waveEffect ids))
     closeSocket handle
 
---TODO: add timer to make sure you only send msg every 100ms
 continuousVolumeMeter :: NanoLeaf -> [PanelId] -> IO ()
 continuousVolumeMeter nl ids = do
     handle <- createSocket nl
-    ALSA.volumeMeter (\volume -> do
+    mVar <- newEmptyMVar
+    threadId <- forkIO (ALSA.volumeMeter mVar)
+    forever $ do
+        --TODO: add timer to make sure you only send msg every 100ms
+        volume <- takeMVar mVar
         let panelColorsMap = volumeMeterEffect ids volume
-        sendByteString handle (createStreamingMsgFromMap panelColorsMap))
+        sendByteString handle (createStreamingMsgFromMap panelColorsMap)
     closeSocket handle   
 
 sendByteString :: ControlStreamHandle -> BS.ByteString -> IO ()
