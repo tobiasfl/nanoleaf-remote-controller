@@ -25,7 +25,7 @@ import NanoLeafApi.Types
 import AppMonad (AppMonad, AppError (RequestWithoutAuthToken, JSONDecodeError), liftIO, EnvConfig (EnvConfig, configAuthToken, connectionManager))
 import Control.Monad.Reader (reader, ask)
 import Control.Monad.Except (throwError)
-import NanoLeafApi.ControlStream (sendMessageForever)
+import NanoLeafApi.ControlStream (continuousVolumeMeter, continuousWaves)
 
 --TODO: also need serialization of the allPanelInfo responsed for instance
 --TODO: Might want internal NanoLeafInfo type that Core has to map to before sending request in here 
@@ -136,7 +136,8 @@ requestControlStream nl = do
             "extControlVersion" .= ("v2" :: String), 
             "animType" .= ("extControl" :: String)] ]
     doPutRequest nl requestObject "/effects"
-  
+ 
+--TODO: maybe take a selected program as agr, then choose effects based on that
 startStreaming :: T.NanoLeaf -> AppMonad ()
 startStreaming nl = do
     panelIds <-  filter (0/=) <$> getAllPanelIds nl
@@ -144,11 +145,11 @@ startStreaming nl = do
     requestControlStream nl
     --TODO: check last message was successful and that selected effect is
     --"\"*ExtControl*\""
-    liftIO $ sendMessageForever nl panelIds 
+    --liftIO $ continuousVolumeMeter nl panelIds 
+    liftIO $ continuousWaves nl panelIds 
 
 getAllPanelIds :: T.NanoLeaf -> AppMonad [PanelId]
 getAllPanelIds nl = do
     allPanelInfo <- getAllPanelInfo nl
-    --TODO: use lenses and create a get positionData lens?
     return $ fmap panelId $ positionData $ layout $ panelLayout allPanelInfo 
 

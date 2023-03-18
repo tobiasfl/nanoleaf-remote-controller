@@ -1,7 +1,7 @@
 
 module NanoLeafApi.ControlStream (
-    sendMessage
-    , sendMessageForever)
+    continuousVolumeMeter,
+    continuousWaves)
     where
 
 import Network.Socket
@@ -15,10 +15,9 @@ import Control.Lens.Getter ((^.))
 import NanoLeafApi.Types (PanelId)
 import Control.Concurrent (threadDelay)
 import Control.Monad
-import Data.List ((\\))
 import Data.ByteString.Builder (toLazyByteString, word16BE)
 import qualified NanoLeafApi.Alsa.Alsa as ALSA
-import NanoLeafApi.Effects (volumeMeterEffect, PanelUpdate(..))
+import NanoLeafApi.Effects (volumeMeterEffect, waveEffect, PanelUpdate(..), Effect)
 
 --TODO: make more of the imports qualified
 
@@ -42,15 +41,6 @@ createSocket nf = do
     return $ ControlStreamHandle cshSock (addrAddress serverAddr)
 
 --TODO: Consider converting whole thing to use lazy ByteString instead
---TODO: Also need a version of this function that can get a spec of different colors for each panelId(a map from id to colour)
-createStreamingMsg :: [PanelId] -> (Int, Int, Int, Int) -> BS.ByteString
-createStreamingMsg ids (r, g, b, transitionTime100ms) = header <> body
-        where header = BS.pack $ map fromIntegral [0, Prelude.length ids] 
-              body :: ByteString
-              body = BS.concat $ map (\pid -> encodeWord16 pid <> BS.pack (map fromIntegral [r, g, b, 0]) <> encodeWord16 transitionTime100ms) ids
-              encodeWord16 :: Int -> BS.ByteString
-              encodeWord16 = BSL.toStrict . toLazyByteString . word16BE . fromIntegral 
-
 createStreamingMsgFromMap :: [(PanelId, PanelUpdate)] -> BS.ByteString
 createStreamingMsgFromMap idsToColors = header <> body
         where header = BS.pack $ map fromIntegral [0, Prelude.length idsToColors] 
@@ -59,16 +49,22 @@ createStreamingMsgFromMap idsToColors = header <> body
               encodeWord16 :: Int -> BS.ByteString
               encodeWord16 = BSL.toStrict . toLazyByteString . word16BE . fromIntegral 
 
-sendMessage :: NanoLeaf -> [PanelId] -> IO ()
-sendMessage nf ids = do
-    handle <- createSocket nf
-    let msg = createStreamingMsg ids (255, 255, 255, 1)
-    sendByteString handle msg
+doEffect :: ControlStreamHandle -> Effect -> IO ()
+doEffect handle effect = do
+    mapM_ doUpdate effect
+        where doUpdate panelUpdateMap = do 
+                sendByteString handle $ createStreamingMsgFromMap panelUpdateMap
+                threadDelay (updateRateMs * 1000)
+
+continuousWaves :: NanoLeaf -> [PanelId] -> IO ()
+continuousWaves nl ids = do
+    handle <- createSocket nl
+    ALSA.volumeMeter (\volume -> when (volume*3 > 8000) (doEffect handle (waveEffect ids)))
     closeSocket handle
 
 --TODO: add timer to make sure you only send msg every 100ms
-sendMessageForever :: NanoLeaf -> [PanelId] -> IO ()
-sendMessageForever nl ids = do
+continuousVolumeMeter :: NanoLeaf -> [PanelId] -> IO ()
+continuousVolumeMeter nl ids = do
     handle <- createSocket nl
     ALSA.volumeMeter (\volume -> do
         let panelColorsMap = volumeMeterEffect ids volume
@@ -86,5 +82,6 @@ closeSocket csHandle = do
     print "Closing UDP socket"
     close (sock csHandle)
 
-
+updateRateMs :: Int
+updateRateMs = 100
 

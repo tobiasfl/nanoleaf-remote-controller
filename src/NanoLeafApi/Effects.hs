@@ -1,12 +1,16 @@
 module NanoLeafApi.Effects (
     volumeMeterEffect
-    , PanelUpdate (..))
+    , waveEffect
+    , PanelUpdate (..)
+    , Effect)
     where
 
 import NanoLeafApi.Types (PanelId)
 import Data.List ((\\))
 
 type Volume = Int
+
+type Effect = [[(PanelId, PanelUpdate)]]
 
 data PanelUpdate = PanelUpdate {
     red :: Int,
@@ -15,19 +19,38 @@ data PanelUpdate = PanelUpdate {
     transitionTime :: Int --in 100ms (so 1 == 100ms)
 }
 
+---TODO: move to outside this lib and pass it as arg to funcs
 --pretending that 17000 is max TODO: find real max
-volumeToPanelCount :: Int -> [PanelId] -> Int
+maxVolume :: Volume
+maxVolume = 17000
+
+darkenPanelUpdate :: PanelUpdate
+darkenPanelUpdate = PanelUpdate 0 0 0 1
+
+greenPanelUpdate :: PanelUpdate
+greenPanelUpdate = PanelUpdate 0 255 0 1
+
+redPanelUpdate :: PanelUpdate
+redPanelUpdate = PanelUpdate 255 0 0 1
+
+volumeToPanelCount :: Volume -> [PanelId] -> Int
 volumeToPanelCount volume panelIds = (volume `div` toDivBy) + minimumPanelsToLight
-    where maxVolume = 17000
-          toDivBy = maxVolume `div` Prelude.length panelIds
+    where toDivBy = maxVolume `div` Prelude.length panelIds
           minimumPanelsToLight = 1
 
 volumeToPanelIds :: Int -> [PanelId] -> [PanelId]
 volumeToPanelIds volume panelIds = Prelude.take (volumeToPanelCount volume panelIds) panelIds
 
+--assumes panelIds are sorted from left to right according to their actual layout
 volumeMeterEffect :: [PanelId] -> Volume -> [(PanelId, PanelUpdate)]
-volumeMeterEffect ids volume = zip panelsToLightUp (repeat (PanelUpdate 255 0 0 1)) ++ zip panelsToDarken (repeat (PanelUpdate 0 0 0 1))
+volumeMeterEffect ids volume = zip panelsToLightUp (repeat redPanelUpdate) ++ zip panelsToDarken (repeat darkenPanelUpdate)
     where withExtraVolume = volume * 3
           panelsToLightUp = volumeToPanelIds withExtraVolume ids
           panelsToDarken = ids \\ panelsToLightUp
-          
+         
+--assumes panelIds are sorted from left to right according to their actual layout
+waveEffect :: [PanelId] -> Effect
+waveEffect ids = map (`ligthOnePanelEffect` ids) ids
+
+ligthOnePanelEffect ::  PanelId -> [PanelId] -> [(PanelId, PanelUpdate)]
+ligthOnePanelEffect idToLight = map (\x -> (x, if idToLight == x then greenPanelUpdate else darkenPanelUpdate))
