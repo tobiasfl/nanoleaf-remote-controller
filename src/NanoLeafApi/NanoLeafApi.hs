@@ -146,8 +146,8 @@ startStreaming nl = do
     --TODO: check last message was successful and that selected effect is
     --"\"*ExtControl*\""
     --liftIO $ continuousVolumeMeter nl panelIds 
-    --liftIO $ continuousWaves nl panelIds 
-    liftIO $ continuousAllEffects nl panelIds 
+    liftIO $ continuousWaves nl panelIds 
+    --liftIO $ continuousAllEffects nl panelIds 
 
 getAllPanelIds :: T.NanoLeaf -> AppMonad [PanelId]
 getAllPanelIds nl = do

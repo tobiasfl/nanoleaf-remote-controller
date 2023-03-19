@@ -61,26 +61,27 @@ doEffect handle effect = do
 
 --TODO: needs a way to stop as well
 --TODO: check time since last message and make it wait until 100ms
-doEffectsWhileMeasuring :: ControlStreamHandle -> MVar Int -> [PanelId] -> [Effect] -> IO ()
-doEffectsWhileMeasuring handle volMVar ids effects = do
+doEffectsWhileMeasuring :: ControlStreamHandle -> MVar Int -> [PanelId] -> [Int -> Effect] -> [Effect] -> IO ()
+doEffectsWhileMeasuring handle volMVar ids effectTriggers effects = do
     vol <- takeMVar volMVar
-    let wave = if vol > 3000 then waveEffect ids else []
-    let vMeter = volumeMeterEffect ids vol
-    let flashEffect = if vol > 8000 then lightAllEffect ids else []
-    let withNewEffects = vMeter:wave:flashEffect:effects
+    --BUG: with current logic, priorities will be off from next cycle
+    let withNewEffects = effects ++ map (\f -> f vol) effectTriggers
     let emptyEffectUpdate = replicate 15 (0, PanelUpdate 0 0 0 0)
     let layeredEffect = layerEffectUpdates $ map (headDef emptyEffectUpdate) withNewEffects
     sendByteString handle (createStreamingMsgFromMap layeredEffect)
     threadDelay (updateRateMs * 1000)
     let filteredEffects = filter (not . null) $ map (Prelude.drop 1) withNewEffects
-    doEffectsWhileMeasuring handle volMVar ids filteredEffects
+    doEffectsWhileMeasuring handle volMVar ids effectTriggers filteredEffects
 
 continuousAllEffects :: NanoLeaf -> [PanelId] -> IO () 
 continuousAllEffects nl ids = do
     handle <- createSocket nl
     volMVar <- newEmptyMVar
     threadId <- forkIO (ALSA.volumeMeter volMVar)
-    doEffectsWhileMeasuring handle volMVar ids []
+    let wave vol = if vol > 3000 then waveEffect ids else []
+    let vMeter = volumeMeterEffect ids
+    let flashEffect vol = if vol > 8000 then lightAllEffect ids else []
+    doEffectsWhileMeasuring handle volMVar ids [vMeter, wave, flashEffect] []
     closeSocket handle
 
 continuousWaves :: NanoLeaf -> [PanelId] -> IO ()
@@ -88,20 +89,17 @@ continuousWaves nl ids = do
     handle <- createSocket nl
     volMVar <- newEmptyMVar
     threadId <- forkIO (ALSA.volumeMeter volMVar)
-    forever $ do
-        volume <- takeMVar volMVar
-        when (volume > 2000) (doEffect handle (waveEffect ids))
+    let wave vol = if vol > 3000 then waveEffect ids else []
+    doEffectsWhileMeasuring handle volMVar ids [wave] []
     closeSocket handle
 
 continuousVolumeMeter :: NanoLeaf -> [PanelId] -> IO ()
 continuousVolumeMeter nl ids = do
     handle <- createSocket nl
-    mVar <- newEmptyMVar
-    threadId <- forkIO (ALSA.volumeMeter mVar)
-    forever $ do
-        volume <- takeMVar mVar
-        let panelColorsMap = head $ volumeMeterEffect ids volume
-        sendByteString handle (createStreamingMsgFromMap panelColorsMap)
+    volMVar  <- newEmptyMVar
+    threadId <- forkIO (ALSA.volumeMeter volMVar)
+    let vMeter = volumeMeterEffect ids
+    doEffectsWhileMeasuring handle volMVar ids [vMeter] []
     closeSocket handle   
 
 sendByteString :: ControlStreamHandle -> BS.ByteString -> IO ()

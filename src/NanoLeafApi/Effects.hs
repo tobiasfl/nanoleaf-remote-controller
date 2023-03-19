@@ -56,16 +56,20 @@ volumeMeterEffect ids volume = [zip panelsToLightUp (repeat redPanelUpdate) ++ z
           panelsToLightUp = volumeToPanelIds withExtraVolume ids
           panelsToDarken = ids \\ panelsToLightUp
          
---assumes panelIds are sorted from left to right according to their actual layout
+--TODO: assumes panelIds are sorted from left to right according to their actual layout 
 waveEffect :: [PanelId] -> Effect
-waveEffect ids = map (`ligthOnePanelEffect` ids) ids
+waveEffect ids = map (`ligthOnePanelEffectUpdate` ids) ids ++ darkenAllPanelsEffect ids
 
 lightAllEffect :: [PanelId] -> Effect
 lightAllEffect ids = [map (, PanelUpdate 255 255 255 1) ids]
 
-ligthOnePanelEffect ::  PanelId -> [PanelId] -> [(PanelId, PanelUpdate)]
-ligthOnePanelEffect idToLight = map (\x -> (x, if idToLight == x then greenPanelUpdate else darkenPanelUpdate))
+ligthOnePanelEffectUpdate :: PanelId -> [PanelId] -> [(PanelId, PanelUpdate)]
+ligthOnePanelEffectUpdate idToLight = map (\x -> (x, if idToLight == x then greenPanelUpdate else darkenPanelUpdate))
 
+darkenAllPanelsEffect :: [PanelId] -> Effect
+darkenAllPanelsEffect ids = [zip ids (repeat darkenPanelUpdate)]
+
+--TODO: assumes effectUpdates are same length and all including the same ids which should not be necessary
 layerEffectUpdates :: [EffectUpdate] -> EffectUpdate
 layerEffectUpdates [] = []
 layerEffectUpdates [x] = x
