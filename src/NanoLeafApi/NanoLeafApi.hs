@@ -25,7 +25,7 @@ import NanoLeafApi.Types
 import AppMonad (AppMonad, AppError (RequestWithoutAuthToken, JSONDecodeError), liftIO, EnvConfig (EnvConfig, configAuthToken, connectionManager))
 import Control.Monad.Reader (reader, ask)
 import Control.Monad.Except (throwError)
-import NanoLeafApi.ControlStream (continuousVolumeMeter, continuousWaves)
+import NanoLeafApi.ControlStream (continuousVolumeMeter, continuousWaves, continuousAllEffects)
 
 --TODO: also need serialization of the allPanelInfo responsed for instance
 --TODO: Might want internal NanoLeafInfo type that Core has to map to before sending request in here 
@@ -146,7 +146,8 @@ startStreaming nl = do
     --TODO: check last message was successful and that selected effect is
     --"\"*ExtControl*\""
     --liftIO $ continuousVolumeMeter nl panelIds 
-    liftIO $ continuousWaves nl panelIds 
+    --liftIO $ continuousWaves nl panelIds 
+    liftIO $ continuousAllEffects nl panelIds 
 
 getAllPanelIds :: T.NanoLeaf -> AppMonad [PanelId]
 getAllPanelIds nl = do

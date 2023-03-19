@@ -1,7 +1,8 @@
 
 module NanoLeafApi.ControlStream (
     continuousVolumeMeter,
-    continuousWaves)
+    continuousWaves,
+    continuousAllEffects)
     where
 
 import Network.Socket
@@ -16,9 +17,10 @@ import NanoLeafApi.Types (PanelId)
 import Control.Monad
 import Data.ByteString.Builder (toLazyByteString, word16BE)
 import qualified NanoLeafApi.Alsa.Alsa as ALSA
-import NanoLeafApi.Effects (volumeMeterEffect, waveEffect, PanelUpdate(..), Effect)
+import NanoLeafApi.Effects (volumeMeterEffect, waveEffect, PanelUpdate(..), Effect, layerEffectUpdates, lightAllEffect, EffectUpdate)
 import Control.Concurrent (threadDelay, forkIO)
-import Control.Concurrent.MVar (newEmptyMVar, takeMVar, tryTakeMVar)
+import Control.Concurrent.MVar (newEmptyMVar, takeMVar, tryTakeMVar, MVar)
+import Data.List.Extra (headDef)
 
 --TODO: make more of the imports qualified
 
@@ -42,7 +44,7 @@ createSocket nf = do
     return $ ControlStreamHandle cshSock (addrAddress serverAddr)
 
 --TODO: Consider converting whole thing to use lazy ByteString instead
-createStreamingMsgFromMap :: [(PanelId, PanelUpdate)] -> BS.ByteString
+createStreamingMsgFromMap :: EffectUpdate -> BS.ByteString
 createStreamingMsgFromMap idsToColors = header <> body
         where header = BS.pack $ map fromIntegral [0, Prelude.length idsToColors] 
               body :: ByteString
@@ -57,13 +59,37 @@ doEffect handle effect = do
                 sendByteString handle $ createStreamingMsgFromMap panelUpdateMap
                 threadDelay (updateRateMs * 1000)
 
+--TODO: needs a way to stop as well
+--TODO: check time since last message and make it wait until 100ms
+doEffectsWhileMeasuring :: ControlStreamHandle -> MVar Int -> [PanelId] -> [Effect] -> IO ()
+doEffectsWhileMeasuring handle volMVar ids effects = do
+    vol <- takeMVar volMVar
+    let wave = if vol > 3000 then waveEffect ids else []
+    let vMeter = volumeMeterEffect ids vol
+    let flashEffect = if vol > 8000 then lightAllEffect ids else []
+    let withNewEffects = vMeter:wave:flashEffect:effects
+    let emptyEffectUpdate = replicate 15 (0, PanelUpdate 0 0 0 0)
+    let layeredEffect = layerEffectUpdates $ map (headDef emptyEffectUpdate) withNewEffects
+    sendByteString handle (createStreamingMsgFromMap layeredEffect)
+    threadDelay (updateRateMs * 1000)
+    let filteredEffects = filter (not . null) $ map (Prelude.drop 1) withNewEffects
+    doEffectsWhileMeasuring handle volMVar ids filteredEffects
+
+continuousAllEffects :: NanoLeaf -> [PanelId] -> IO () 
+continuousAllEffects nl ids = do
+    handle <- createSocket nl
+    volMVar <- newEmptyMVar
+    threadId <- forkIO (ALSA.volumeMeter volMVar)
+    doEffectsWhileMeasuring handle volMVar ids []
+    closeSocket handle
+
 continuousWaves :: NanoLeaf -> [PanelId] -> IO ()
 continuousWaves nl ids = do
     handle <- createSocket nl
-    mVar <- newEmptyMVar
-    threadId <- forkIO (ALSA.volumeMeter mVar)
+    volMVar <- newEmptyMVar
+    threadId <- forkIO (ALSA.volumeMeter volMVar)
     forever $ do
-        volume <- takeMVar mVar
+        volume <- takeMVar volMVar
         when (volume > 2000) (doEffect handle (waveEffect ids))
     closeSocket handle
 
@@ -73,9 +99,8 @@ continuousVolumeMeter nl ids = do
     mVar <- newEmptyMVar
     threadId <- forkIO (ALSA.volumeMeter mVar)
     forever $ do
-        --TODO: add timer to make sure you only send msg every 100ms
         volume <- takeMVar mVar
-        let panelColorsMap = volumeMeterEffect ids volume
+        let panelColorsMap = head $ volumeMeterEffect ids volume
         sendByteString handle (createStreamingMsgFromMap panelColorsMap)
     closeSocket handle   
 
