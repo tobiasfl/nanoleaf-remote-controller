@@ -14,8 +14,6 @@ import Data.Maybe (isNothing)
 import Types
 import Config (getConfig, authenticationToken, ConfigFile)
 
---TODO: set up testing
-
 runApp :: IO ()
 runApp = do
     (Request cmd authTokOverride) <- execParser opts
@@ -29,7 +27,8 @@ runApp = do
               <> progDesc "Control Nanoleafs from the command line"
               <> header "NanoLeaf Controller")
 
---displayAppError :: AppError -> String TODO
+displayAppError :: AppError -> String
+displayAppError = undefined
 
 prepareAppReqs :: Maybe AuthToken -> IO EnvConfig
 prepareAppReqs authTokOverride = do
@@ -48,7 +47,6 @@ handleCommand cmd = do
     nanoLeafs <- findNanoleafs 
     when (null nanoLeafs) (throwError NanoLeafsNotFound)    
     maybeAuthTok <- asks configAuthToken
-    --TODO: handle when no token is configured
     (case cmd of GetAllPanelInfo -> getAllPanelInfo (head nanoLeafs) >>= liftIO . print
                  OnOffState -> getOnOffState $ head nanoLeafs
                  TurnOff -> setOnOffState (head nanoLeafs) False
@@ -58,13 +56,15 @@ handleCommand cmd = do
                  ListEffects -> getEffects (head nanoLeafs)
                  GetSelectedEffect -> getSelectedEffect (head nanoLeafs)
                  SetSelectedEffect effect -> setSelectedEffect (head nanoLeafs) effect
-                 StartNanoLeafExtCtrl -> handleStartStreamingCommand (head nanoLeafs)
+                 StartNanoLeafExtCtrl streamEffects -> handleStartStreamingCommand (head nanoLeafs) streamEffects
                  _ -> liftIO $ putStrLn $ show cmd ++ " is not implemented!")
   
+handleMissingAuthToken :: AppMonad AuthToken
+handleMissingAuthToken = undefined
 
-handleStartStreamingCommand :: NanoLeaf -> AppMonad ()
-handleStartStreamingCommand nl = do
-    startStreaming nl
+handleStartStreamingCommand :: NanoLeaf -> [String] -> AppMonad ()
+handleStartStreamingCommand nl effects = do
+    startStreaming nl effects
 
 getNewAuthToken :: AppMonad AuthToken
 getNewAuthToken = undefined

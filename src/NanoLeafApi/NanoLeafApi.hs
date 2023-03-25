@@ -25,11 +25,9 @@ import NanoLeafApi.Types
 import AppMonad (AppMonad, AppError (RequestWithoutAuthToken, JSONDecodeError), liftIO, EnvConfig (EnvConfig, configAuthToken, connectionManager))
 import Control.Monad.Reader (reader, ask)
 import Control.Monad.Except (throwError)
-import NanoLeafApi.ControlStream (continuousVolumeMeter, continuousWaves, continuousAllEffects)
+import NanoLeafApi.ControlStream (continuousAllEffects)
 
---TODO: also need serialization of the allPanelInfo responsed for instance
---TODO: Might want internal NanoLeafInfo type that Core has to map to before sending request in here 
---TODO: consider wrapping some of the calls in try and mapping to an appropriate AppError
+--TODO: wrap some of the calls in try and mapping to an appropriate AppError
 
 initManager :: IO Manager
 initManager = newManager defaultManagerSettings
@@ -75,7 +73,6 @@ doPutRequest nl requestObject endPoint = do
     let request = initialRequest { method = "PUT", requestBody = RequestBodyLBS $ encode requestObject }
     liftIO $ putStrLn $ "Sending PUT request: " ++ show request
     response <- liftIO $ httpLbs request manager
-    --TODO: close connection by using withResponse instead
     liftIO $ putStrLn $ "The status code was: " ++ show (statusCode $ responseStatus response)
     liftIO $ print $ responseBody response
 
@@ -122,11 +119,10 @@ getSelectedEffect nl = doGetRequest nl "/effects/select"
 
 setSelectedEffect :: T.NanoLeaf -> String -> AppMonad ()
 setSelectedEffect nl effect = do
-    --TODO: handle resource not found
+    --TODO: handle resource not found(which means the effect does not exist)
     let requestObject = object ["select" .= effect ]
     doPutRequest nl requestObject "/effects"
 
---Requests the nanoleaf to open a UDP socket to stream control data frames
 --Can be verified by checking that nanoleaf selected mode is
     --"\"*ExtControl*\""
 requestControlStream :: T.NanoLeaf -> AppMonad () 
@@ -138,19 +134,15 @@ requestControlStream nl = do
     doPutRequest nl requestObject "/effects"
  
 --TODO: maybe take a selected program as agr, then choose effects based on that
-startStreaming :: T.NanoLeaf -> AppMonad ()
-startStreaming nl = do
-    panelIds <-  filter (0/=) <$> getAllPanelIds nl
-    liftIO $ print $ "Panel IDs:" ++ show panelIds
+startStreaming :: T.NanoLeaf -> [String] -> AppMonad ()
+startStreaming nl effects = do
+    layout <- getPanelLayout nl
     requestControlStream nl
     --TODO: check last message was successful and that selected effect is
     --"\"*ExtControl*\""
-    --liftIO $ continuousVolumeMeter nl panelIds 
-    liftIO $ continuousWaves nl panelIds 
-    --liftIO $ continuousAllEffects nl panelIds 
+    liftIO $ continuousAllEffects nl layout effects
 
-getAllPanelIds :: T.NanoLeaf -> AppMonad [PanelId]
-getAllPanelIds nl = do
+getPanelLayout :: T.NanoLeaf -> AppMonad PanelLayout
+getPanelLayout nl = do
     allPanelInfo <- getAllPanelInfo nl
-    return $ fmap panelId $ positionData $ layout $ panelLayout allPanelInfo 
-
+    return $ panelLayout allPanelInfo 

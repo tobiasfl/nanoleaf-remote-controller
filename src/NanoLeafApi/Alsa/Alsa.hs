@@ -11,6 +11,7 @@ import Foreign
           Storable, Ptr, castPtr, )
 import Data.Int (Int16, )
 import Control.Concurrent.MVar (MVar, tryPutMVar)
+import Data.Time.Clock (getCurrentTime, diffUTCTime, UTCTime)
 
 bufSize :: Int
 bufSize = 1000
@@ -22,13 +23,12 @@ pulseAudioDevice :: String
 pulseAudioDevice = "default"
 
 inputFormat :: SoundFmt Int16
-inputFormat = SoundFmt { sampleFreq = 8000 }
+inputFormat = SoundFmt { sampleFreq = 16000 } --example was 8000
 
---TODO: Find out how often it actually measures(just take current time), and find way to limit to make it a parameter
 
 --Takes a callback that may use the measured volume to affect nanoleafs
 volumeMeter :: MVar Int -> IO ()
-volumeMeter mVar = let source = alsaSoundSource microphoneDevice inputFormat
+volumeMeter mVar = let source = alsaSoundSource pulseAudioDevice inputFormat
                 in allocaArray     bufSize $ \buf  ->
                    withSoundSource source  $ \handle -> 
                        loop source handle bufSize buf mVar

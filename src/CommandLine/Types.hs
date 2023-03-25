@@ -1,5 +1,0 @@
-module CommandLine.Types
-    (
-    )
-    where
-

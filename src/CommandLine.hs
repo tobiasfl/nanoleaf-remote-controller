@@ -4,4 +4,3 @@ module CommandLine
     where
 
 import CommandLine.CommandLine
-import CommandLine.Types

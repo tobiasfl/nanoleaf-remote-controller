@@ -38,6 +38,7 @@ dependencies:
 - alsa-pcm
 - alsa-core
 - containers
+- time
 
 ghc-options:
 - -Wall

@@ -7,16 +7,23 @@ module NanoLeafApi.Effects (
     , EffectUpdate
     , Effect
     , layerEffectUpdates
-    , lightAllEffect)
+    , lightAllEffect
+    , EffectDir (..))
     where
 
-import NanoLeafApi.Types (PanelId)
+import NanoLeafApi.Types (PanelId, Layout, PanelLayout)
+import NanoLeafApi.PanelLayout (panelIdsFromRight, panelIdsFromLeft, panelIdsFromBottom)
 import Data.List ((\\), sortOn)
 
 type Volume = Int
 
 --TODO: could have a field to describe the type of the Effect (e.g. Wave, meeter, splash etc.)
 type Effect = [EffectUpdate]
+
+--data Effect
+
+data EffectDir = L | R | U
+    deriving (Show, Eq)
 
 type EffectUpdate = [(PanelId, PanelUpdate)]
 
@@ -28,9 +35,10 @@ data PanelUpdate = PanelUpdate {
 }
 
 ---TODO: move to outside this lib and pass it as arg to funcs
---pretending that 17000 is max TODO: find real max
+--pretending that 17000 is max TODO: 
+--Could use moving average (or 95th percentile) to know what is max
 maxVolume :: Volume
-maxVolume = 17000
+maxVolume = 10000
 
 darkenPanelUpdate :: PanelUpdate
 darkenPanelUpdate = PanelUpdate 0 0 0 1
@@ -49,19 +57,29 @@ volumeToPanelCount volume panelIds = (volume `div` toDivBy) + minimumPanelsToLig
 volumeToPanelIds :: Int -> [PanelId] -> [PanelId]
 volumeToPanelIds volume panelIds = take (volumeToPanelCount volume panelIds) panelIds
 
---assumes panelIds are sorted from left to right according to their actual layout
-volumeMeterEffect :: [PanelId] -> Volume -> Effect
-volumeMeterEffect ids volume = [zip panelsToLightUp (repeat redPanelUpdate) ++ zip panelsToDarken (repeat darkenPanelUpdate)]    
+volumeMeterEffect :: PanelLayout -> Volume -> Effect
+volumeMeterEffect pl volume = [zip panelsToLightUp (repeat redPanelUpdate) ++ zip panelsToDarken (repeat darkenPanelUpdate)]
     where withExtraVolume = volume * 3
+          ids = panelIdsFromBottom pl
           panelsToLightUp = volumeToPanelIds withExtraVolume ids
           panelsToDarken = ids \\ panelsToLightUp
          
---TODO: assumes panelIds are sorted from left to right according to their actual layout 
-waveEffect :: [PanelId] -> Effect
-waveEffect ids = map (`ligthOnePanelEffectUpdate` ids) ids ++ darkenAllPanelsEffect ids
+waveEffect :: EffectDir -> PanelLayout -> Effect
+waveEffect dir layout = map (`ligthOnePanelEffectUpdate` ids) ids ++ darkenAllPanelsEffect ids
+    where ids = case dir of L -> panelIdsFromRight layout
+                            R -> panelIdsFromLeft layout
+                            U -> panelIdsFromBottom layout
 
-lightAllEffect :: [PanelId] -> Effect
-lightAllEffect ids = [map (, PanelUpdate 255 255 255 1) ids]
+volumeToPanelUpdate :: Volume -> PanelUpdate
+volumeToPanelUpdate vol = PanelUpdate brightness brightness brightness 1
+    where brightness = vol `div` toDivBy
+          toDivBy = maxVolume `div` maxBrightness
+          maxBrightness = 255
+
+lightAllEffect :: PanelLayout -> Volume -> Effect
+lightAllEffect pl vol = [map (, pu) ids] 
+    where pu = volumeToPanelUpdate vol
+          ids = panelIdsFromBottom pl 
 
 ligthOnePanelEffectUpdate :: PanelId -> [PanelId] -> [(PanelId, PanelUpdate)]
 ligthOnePanelEffectUpdate idToLight = map (\x -> (x, if idToLight == x then greenPanelUpdate else darkenPanelUpdate))
@@ -69,7 +87,7 @@ ligthOnePanelEffectUpdate idToLight = map (\x -> (x, if idToLight == x then gree
 darkenAllPanelsEffect :: [PanelId] -> Effect
 darkenAllPanelsEffect ids = [zip ids (repeat darkenPanelUpdate)]
 
---TODO: assumes effectUpdates are same length and all including the same ids which should not be necessary
+--TODO: assumes effectUpdates are same length and all including the same ids
 layerEffectUpdates :: [EffectUpdate] -> EffectUpdate
 layerEffectUpdates [] = []
 layerEffectUpdates [x] = x
@@ -81,3 +99,4 @@ layerEffectUpdates (low:up:xs) = layerEffectUpdates (layered:xs)
         layerPanelUpdates (_, PanelUpdate 0 0 0 _) upper = upper
         layerPanelUpdates _ upper = upper
 
+--TODO: effect that depends one some moving average (and then lights some or all panels depending on ranges of volume) e.g. 5, 25, 50(avg), 75, 95 percentiles or something

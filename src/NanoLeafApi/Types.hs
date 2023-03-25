@@ -5,9 +5,10 @@
 module NanoLeafApi.Types
     (AllPanelInfo (panelLayout)
     , PanelId
-    , PanelPositionData (panelId)
-    , PanelLayout (layout)
-    , Layout (positionData)
+    , PanelPositionData (..)
+    , PanelLayout (..)
+    , Layout (..)
+    , StateValue (..)
     )
     where
 

@@ -1,26 +1,26 @@
 
 module NanoLeafApi.ControlStream (
-    continuousVolumeMeter,
-    continuousWaves,
-    continuousAllEffects)
+    continuousAllEffects
+    )
     where
 
 import Network.Socket
 import Network.Socket.ByteString
 import qualified Data.ByteString as BS (ByteString, length, pack, concat)
 import qualified Data.ByteString.Lazy as BSL (toStrict, ByteString)
-import Data.ByteString.UTF8 as BSU
 import Data.Text (unpack)
 import Types (NanoLeaf, getHostName, hostname)
 import Control.Lens.Getter ((^.))
-import NanoLeafApi.Types (PanelId)
+import NanoLeafApi.Types (PanelId, Layout, PanelLayout)
 import Control.Monad
 import Data.ByteString.Builder (toLazyByteString, word16BE)
 import qualified NanoLeafApi.Alsa.Alsa as ALSA
-import NanoLeafApi.Effects (volumeMeterEffect, waveEffect, PanelUpdate(..), Effect, layerEffectUpdates, lightAllEffect, EffectUpdate)
+import NanoLeafApi.Effects 
 import Control.Concurrent (threadDelay, forkIO)
 import Control.Concurrent.MVar (newEmptyMVar, takeMVar, tryTakeMVar, MVar)
 import Data.List.Extra (headDef)
+import NanoLeafApi.PanelLayout (panelIdsFromLeft, panelIdsFromRight, panelIdsFromBottom)
+import Data.Maybe (mapMaybe)
 
 --TODO: make more of the imports qualified
 
@@ -46,18 +46,11 @@ createSocket nf = do
 --TODO: Consider converting whole thing to use lazy ByteString instead
 createStreamingMsgFromMap :: EffectUpdate -> BS.ByteString
 createStreamingMsgFromMap idsToColors = header <> body
-        where header = BS.pack $ map fromIntegral [0, Prelude.length idsToColors] 
-              body :: ByteString
+        where header = BS.pack $ map fromIntegral [0, length idsToColors] 
+              body :: BS.ByteString
               body = BS.concat $ map (\(pid, PanelUpdate r g b tt) -> encodeWord16 pid <> BS.pack (map fromIntegral [r, g, b, 0]) <> encodeWord16 tt) idsToColors
               encodeWord16 :: Int -> BS.ByteString
               encodeWord16 = BSL.toStrict . toLazyByteString . word16BE . fromIntegral 
-
-doEffect :: ControlStreamHandle -> Effect -> IO ()
-doEffect handle effect = do
-    mapM_ doUpdate effect
-        where doUpdate panelUpdateMap = do 
-                sendByteString handle $ createStreamingMsgFromMap panelUpdateMap
-                threadDelay (updateRateMs * 1000)
 
 --TODO: needs a way to stop as well
 --TODO: check time since last message and make it wait until 100ms
@@ -70,37 +63,28 @@ doEffectsWhileMeasuring handle volMVar ids effectTriggers effects = do
     let layeredEffect = layerEffectUpdates $ map (headDef emptyEffectUpdate) withNewEffects
     sendByteString handle (createStreamingMsgFromMap layeredEffect)
     threadDelay (updateRateMs * 1000)
-    let filteredEffects = filter (not . null) $ map (Prelude.drop 1) withNewEffects
+    let filteredEffects = filter (not . null) $ map (drop 1) withNewEffects
     doEffectsWhileMeasuring handle volMVar ids effectTriggers filteredEffects
 
-continuousAllEffects :: NanoLeaf -> [PanelId] -> IO () 
-continuousAllEffects nl ids = do
+continuousAllEffects :: NanoLeaf -> PanelLayout -> [String] -> IO () 
+continuousAllEffects nl layout effectNames = do
     handle <- createSocket nl
     volMVar <- newEmptyMVar
     threadId <- forkIO (ALSA.volumeMeter volMVar)
-    let wave vol = if vol > 3000 then waveEffect ids else []
-    let vMeter = volumeMeterEffect ids
-    let flashEffect vol = if vol > 8000 then lightAllEffect ids else []
-    doEffectsWhileMeasuring handle volMVar ids [vMeter, wave, flashEffect] []
+    let triggers = effectNamesToTriggers layout effectNames
+    doEffectsWhileMeasuring handle volMVar ids triggers []
     closeSocket handle
+        where ids = panelIdsFromLeft layout
 
-continuousWaves :: NanoLeaf -> [PanelId] -> IO ()
-continuousWaves nl ids = do
-    handle <- createSocket nl
-    volMVar <- newEmptyMVar
-    threadId <- forkIO (ALSA.volumeMeter volMVar)
-    let wave vol = if vol > 3000 then waveEffect ids else []
-    doEffectsWhileMeasuring handle volMVar ids [wave] []
-    closeSocket handle
-
-continuousVolumeMeter :: NanoLeaf -> [PanelId] -> IO ()
-continuousVolumeMeter nl ids = do
-    handle <- createSocket nl
-    volMVar  <- newEmptyMVar
-    threadId <- forkIO (ALSA.volumeMeter volMVar)
-    let vMeter = volumeMeterEffect ids
-    doEffectsWhileMeasuring handle volMVar ids [vMeter] []
-    closeSocket handle   
+--TODO: Should only parse to Effect Data type (which should be added)
+effectNamesToTriggers :: PanelLayout -> [String] -> [Int -> Effect]
+effectNamesToTriggers pl = mapMaybe parseName 
+    where ids = panelIdsFromLeft pl
+          parseName x = 
+            case x of "wave"  -> Just $ \v -> if v > 1000 then waveEffect R pl else []
+                      "meter" -> Just $ volumeMeterEffect pl 
+                      "flash" -> Just $ lightAllEffect pl
+                      _       -> Nothing
 
 sendByteString :: ControlStreamHandle -> BS.ByteString -> IO ()
 sendByteString csHandle msg = do

@@ -3,7 +3,6 @@ module CommandLine.CommandLine
     ) where
 
 import Options.Applicative
-import CommandLine.Types
 import Types (AuthToken, mkAuthToken, Request (..), Command (..))
 import Data.Text as T
 import Text.Read (readMaybe)
@@ -14,7 +13,7 @@ requestParser = Request
       <*> option parseInitialAuthToken
           ( long "authToken"
          <> short 'a'
-         <> help "An existing authentication token to use for performing nanoleaf actions."
+         <> help "An existing authentication token to use when communicating with the nanoleafs."
          <> value Nothing
          <> metavar "AUTH")
 
@@ -42,16 +41,16 @@ commandParser = subparser
             (info (pure GetSelectedEffect) (progDesc "Show currently selected effect."))
         <> command "set-selected-effect" 
             (info
-                (argument (maybeReader (Just . SetSelectedEffect))
-                    (metavar "STR"
+                (argument (maybeReader (Just . SetSelectedEffect)) (metavar "STR" 
                     <> help "The name of the effect."))
                 (progDesc "Show currently selected effect."))
         <> command "start-streaming" 
-            (info (pure StartNanoLeafExtCtrl) (progDesc "Start streaming contorl data to the panels over a UDP socket."))
+            (info 
+                (StartNanoLeafExtCtrl <$> many (strArgument (metavar "STR"
+                    <> help "A list of streaming effects(flash,wave,meter)")))
+            (progDesc "Start streaming control data to the panels over a UDP socket based on system sound or microphone."))
         <> command "show-on-off" 
             (info (pure OnOffState) (progDesc "Check if panels are on or off.")))
 
 parseInitialAuthToken :: ReadM (Maybe AuthToken)
 parseInitialAuthToken = maybeReader (Just . Just . mkAuthToken . T.pack)
-
-

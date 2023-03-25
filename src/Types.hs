@@ -105,7 +105,7 @@ data Command = GetAllPanelInfo
              | ListEffects
              | GetSelectedEffect
              | SetSelectedEffect String
-             | StartNanoLeafExtCtrl
+             | StartNanoLeafExtCtrl [String]
              | ListNanoLeafs  --TODO: use MDNS to list possible nanoleafs
              deriving (Show, Eq)
 
