@@ -1,4 +1,3 @@
-
 module NanoLeafApi.ControlStream (
     continuousAllEffects
     )
@@ -21,6 +20,7 @@ import Control.Concurrent.MVar (newEmptyMVar, takeMVar, tryTakeMVar, MVar)
 import Data.List.Extra (headDef)
 import NanoLeafApi.PanelLayout (panelIdsFromLeft, panelIdsFromRight, panelIdsFromBottom)
 import Data.Maybe (mapMaybe)
+import Data.Time.Clock (getCurrentTime, diffUTCTime, UTCTime, diffTimeToPicoseconds, picosecondsToDiffTime)
 
 --TODO: make more of the imports qualified
 
@@ -52,31 +52,45 @@ createStreamingMsgFromMap idsToColors = header <> body
               encodeWord16 :: Int -> BS.ByteString
               encodeWord16 = BSL.toStrict . toLazyByteString . word16BE . fromIntegral 
 
---TODO: needs a way to stop as well
---TODO: check time since last message and make it wait until 100ms
-doEffectsWhileMeasuring :: ControlStreamHandle -> MVar Int -> [PanelId] -> [Int -> Effect] -> [Effect] -> IO ()
-doEffectsWhileMeasuring handle volMVar ids effectTriggers effects = do
+addThreadDelay :: UTCTime -> UTCTime -> IO ()
+addThreadDelay curr prev = do
+    let timeSinceLastMsg = realToFrac (diffUTCTime curr prev) 
+    
+    let minSendInterval = picosecondsToDiffTime (toInteger updateRateMs * 1000000000)
+    
+    let timeToWaitMs = max 0 $ diffTimeToPicoseconds (minSendInterval - timeSinceLastMsg) `div` 1000000
+    
+    putStrLn $ "Time since last streaming message: " ++ show timeSinceLastMsg
+    putStrLn $ "Time to wait delay in ms: " ++ show (timeToWaitMs `div` 1000)
+    
+    threadDelay (fromIntegral timeToWaitMs)
+
+
+--TODO: maybe effect stuff can be more abstracted away
+doEffectsWhileMeasuring :: ControlStreamHandle -> MVar Int -> [PanelId] -> [Int -> Effect] -> [Effect] -> UTCTime -> IO ()
+doEffectsWhileMeasuring handle volMVar ids effectTriggers effects prevSentTime = do
     vol <- takeMVar volMVar
     --BUG: with current logic, priorities will be off from next cycle
     let withNewEffects = effects ++ map (\f -> f vol) effectTriggers
     let emptyEffectUpdate = replicate 15 (0, PanelUpdate 0 0 0 0)
     let layeredEffect = layerEffectUpdates $ map (headDef emptyEffectUpdate) withNewEffects
+    mostRecentSentTime <- getCurrentTime
+    addThreadDelay mostRecentSentTime prevSentTime
     sendByteString handle (createStreamingMsgFromMap layeredEffect)
-    threadDelay (updateRateMs * 1000)
-    let filteredEffects = filter (not . null) $ map (drop 1) withNewEffects
-    doEffectsWhileMeasuring handle volMVar ids effectTriggers filteredEffects
+    let updatedEffects = filter (not . null) $ map (drop 1) withNewEffects
+    doEffectsWhileMeasuring handle volMVar ids effectTriggers updatedEffects mostRecentSentTime
 
 continuousAllEffects :: NanoLeaf -> PanelLayout -> [String] -> IO () 
 continuousAllEffects nl layout effectNames = do
     handle <- createSocket nl
     volMVar <- newEmptyMVar
-    threadId <- forkIO (ALSA.volumeMeter volMVar)
+    _ <- forkIO (ALSA.volumeMeter volMVar)
     let triggers = effectNamesToTriggers layout effectNames
-    doEffectsWhileMeasuring handle volMVar ids triggers []
+    getCurrentTime >>= doEffectsWhileMeasuring handle volMVar ids triggers [] 
     closeSocket handle
         where ids = panelIdsFromLeft layout
 
---TODO: Should only parse to Effect Data type (which should be added)
+--TODO: Should only parse to Effect Data type (which should be added so you can prioritize on type when combining effects)
 effectNamesToTriggers :: PanelLayout -> [String] -> [Int -> Effect]
 effectNamesToTriggers pl = mapMaybe parseName 
     where ids = panelIdsFromLeft pl
