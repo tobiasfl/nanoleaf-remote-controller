@@ -8,7 +8,8 @@ module NanoLeafApi.Effects (
     , Effect
     , layerEffectUpdates
     , lightAllEffect
-    , EffectDir (..))
+    , EffectDir (..)
+    , Volume)
     where
 
 import NanoLeafApi.Types (PanelId, Layout, PanelLayout)
@@ -32,7 +33,7 @@ data PanelUpdate = PanelUpdate {
     green :: Int,
     blue :: Int,
     transitionTime :: Int --in 100ms (so 1 == 100ms)
-}
+} deriving (Show, Eq)
 
 ---TODO: move to outside this lib and pass it as arg to funcs
 --pretending that 17000 is max TODO: 
@@ -54,7 +55,7 @@ volumeToPanelCount volume panelIds = (volume `div` toDivBy) + minimumPanelsToLig
     where toDivBy = maxVolume `div` length panelIds
           minimumPanelsToLight = 1
 
-volumeToPanelIds :: Int -> [PanelId] -> [PanelId]
+volumeToPanelIds :: Volume -> [PanelId] -> [PanelId]
 volumeToPanelIds volume panelIds = take (volumeToPanelCount volume panelIds) panelIds
 
 volumeMeterEffect :: PanelLayout -> Volume -> Effect

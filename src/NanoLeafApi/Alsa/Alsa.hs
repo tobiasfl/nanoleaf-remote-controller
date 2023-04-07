@@ -39,7 +39,7 @@ loop src handle n buf mVar =
        avg <- avgBuf buf n' --n' is just how many bytes were read into the buffer I think
        putStrLn $ "Avg volume" ++ show avg
        putStrLn (replicate (avg `div` 20) '*')
-       tryPutMVar mVar avg
+       tryPutMVar mVar avg--TODO: double check if this one replaces the value if something is still there
        loop src handle n buf mVar
 
 avgBuf :: (Storable a, Integral a) => Ptr a -> Int -> IO Int

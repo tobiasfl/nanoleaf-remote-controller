@@ -1,2 +1,11 @@
+
+import EffectsTests (runTests)
+
 main :: IO ()
-main = putStrLn "Test suite not yet implemented"
+main = do 
+    unitTests
+
+unitTests :: IO ()
+unitTests = do
+    runTests
+    

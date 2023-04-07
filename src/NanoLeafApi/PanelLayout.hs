@@ -10,6 +10,7 @@ import Data.List (sortOn)
 triangleShapeSideLength :: Int
 triangleShapeSideLength = 134
 
+--TODO: actually filter away panels with type 12 which is controller instead
 panelIdsFromLeft :: PanelLayout -> [PanelId]
 panelIdsFromLeft pl = filter (0/=) $ map panelId $ sortOn x $ rotatePositionData (-degrees) $ positionData $ layout pl
     where degrees = value $ globalOrientation pl
@@ -17,6 +18,7 @@ panelIdsFromLeft pl = filter (0/=) $ map panelId $ sortOn x $ rotatePositionData
 panelIdsFromRight :: PanelLayout -> [PanelId]
 panelIdsFromRight = reverse . panelIdsFromLeft
 
+--TODO: actually filter away panels with type 12 which is controller instead
 panelIdsFromBottom :: PanelLayout -> [PanelId]
 panelIdsFromBottom pl = filter (0/=) $ map panelId $ sortOn y $ rotatePositionData (-degrees) $ positionData $ layout pl
     where degrees = value $ globalOrientation pl

@@ -45,7 +45,8 @@ library
       src
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      aeson
+      QuickCheck
+    , aeson
     , alsa-core
     , alsa-pcm
     , alsa-seq
@@ -74,7 +75,8 @@ executable nanoleaf-remote-controller-exe
       app
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      aeson
+      QuickCheck
+    , aeson
     , alsa-core
     , alsa-pcm
     , alsa-seq
@@ -100,12 +102,14 @@ test-suite nanoleaf-remote-controller-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      EffectsTests
       Paths_nanoleaf_remote_controller
   hs-source-dirs:
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      aeson
+      QuickCheck
+    , aeson
     , alsa-core
     , alsa-pcm
     , alsa-seq
