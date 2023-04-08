@@ -9,7 +9,8 @@ module NanoLeafApi.Effects (
     , layerEffectUpdates
     , lightAllEffect
     , EffectDir (..)
-    , Volume)
+    , Volume
+    , darkenPanelUpdate)
     where
 
 import NanoLeafApi.Types (PanelId, Layout, PanelLayout)
@@ -20,8 +21,6 @@ type Volume = Int
 
 --TODO: could have a field to describe the type of the Effect (e.g. Wave, meeter, splash etc.)
 type Effect = [EffectUpdate]
-
---data Effect
 
 data EffectDir = L | R | U
     deriving (Show, Eq)
@@ -92,12 +91,14 @@ darkenAllPanelsEffect ids = [zip ids (repeat darkenPanelUpdate)]
 layerEffectUpdates :: [EffectUpdate] -> EffectUpdate
 layerEffectUpdates [] = []
 layerEffectUpdates [x] = x
-layerEffectUpdates (low:up:xs) = layerEffectUpdates (layered:xs)
+layerEffectUpdates (bot:top:xs) = layerEffectUpdates (layered:xs)
     where 
-        layered = zipWith layerPanelUpdates (sortOn fst low) (sortOn fst up)
+        layered = zipWith layerPanelUpdates (sortOn fst bot) (sortOn fst top)
         layerPanelUpdates :: (PanelId, PanelUpdate) -> (PanelId, PanelUpdate) -> (PanelId, PanelUpdate)
         layerPanelUpdates lower (_, PanelUpdate 0 0 0 _) = lower
         layerPanelUpdates (_, PanelUpdate 0 0 0 _) upper = upper
         layerPanelUpdates _ upper = upper
 
---TODO: effect that depends one some moving average (and then lights some or all panels depending on ranges of volume) e.g. 5, 25, 50(avg), 75, 95 percentiles or something
+
+
+--TODO: effect that depends on some moving average (and then lights some or all panels depending on ranges of volume) e.g. 5, 25, 50(avg), 75, 95 percentiles or something
