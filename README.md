@@ -1,6 +1,6 @@
 # nanoleaf-remote-controller
-This CLI tool lets you control your nanoleafs from you laptop when on the same wifi. I mostly made this for myself so the code only supports the version of the api that my Nanoleaf Shapes (triangles) kit uses. 
-I just sold my nanoleafs, leaving this project in its current unfinished state. 
+This CLI tool lets you control your nanoleafs from you laptop when on the same wifi. I mostly made this for myself so the code only supports the version of the api that my Nanoleaf Shapes (triangles) kit used. 
+I have sold my nanoleafs, leaving this project in its current unfinished state. 
 ## Dependencies
 - avahi-browse command needed for MDNS (Finding the Nanoleafs)
 ### Audio based effect streaming dependencies
