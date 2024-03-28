@@ -35,15 +35,15 @@ volumeMeter mVar = let source = alsaSoundSource pulseAudioDevice inputFormat
 -- | assumes that the file contains numbers in the host's byte order
 loop :: SoundSource h Int16 -> h Int16 -> Int -> Ptr Int16 -> MVar Int -> IO ()
 loop src handle n buf mVar =
-    do n' <- soundSourceRead src handle (castPtr buf) n--Read current 'value' of sound source?
-       avg <- avgBuf buf n' --n' is just how many bytes were read into the buffer I think
+    do n' <- soundSourceRead src handle (castPtr buf) n
+       avg <- avgBuf buf n' 
        putStrLn $ "Avg volume" ++ show avg
        putStrLn (replicate (avg `div` 20) '*')
-       tryPutMVar mVar avg--TODO: double check if this one replaces the value if something is still there
+       tryPutMVar mVar avg
        loop src handle n buf mVar
 
 avgBuf :: (Storable a, Integral a) => Ptr a -> Int -> IO Int
-avgBuf buf n = do xs <- peekArray n buf--peekArray converts to a Haskell list
+avgBuf buf n = do xs <- peekArray n buf
                   let xs' = map (fromIntegral . abs) xs :: [Int]
                   return $ sum xs' `div` n
 
