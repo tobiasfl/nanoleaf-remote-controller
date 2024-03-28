@@ -9,7 +9,7 @@ module NanoLeafApi
     , getEffects
     , getSelectedEffect
     , setSelectedEffect
-    , AllPanelInfo--TODO: maybe not expose this directly?
+    , AllPanelInfo
     , startStreaming
     )
     where
