@@ -23,7 +23,7 @@ pulseAudioDevice :: String
 pulseAudioDevice = "default"
 
 inputFormat :: SoundFmt Int16
-inputFormat = SoundFmt { sampleFreq = 16000 } --example was 8000
+inputFormat = SoundFmt { sampleFreq = 16000 }
 
 --Takes a callback that may use the measured volume to affect nanoleafs
 volumeMeter :: MVar Int -> IO ()
